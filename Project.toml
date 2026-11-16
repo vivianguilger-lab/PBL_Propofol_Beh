@@ -1,0 +1,7 @@
+name = "PropofolWK"
+uuid = "7192717b-12d6-4bc1-83b0-24e85d04688b"
+authors = ["vivianguilger-lab"]
+version = "0.1.0"
+
+[compat]
+julia = "1.10"
