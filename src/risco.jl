@@ -49,14 +49,21 @@ function faixa_pam(curvas; inferior = 0.05, superior = 0.95)
 end
 
 """
-    periodos_de_risco(t, inf, sup; limiares = LIMIARES)
+    periodos_de_risco(t, inf, sup; limiares = LIMIARES, arredondar = true)
 
 Divide o tempo em períodos. Em cada período, a borda de baixo da faixa (`inf`,
 o pior caso) fica num mesmo nível de risco e a borda de cima (`sup`, o melhor
 caso) fica num mesmo nível. Devolve uma lista de períodos com: `inicio` e `fim`
 (s), `pior` e `melhor` (níveis) e `pam_min` e `pam_max` (mmHg) no período.
+
+Com `arredondar = true`, as bordas são arredondadas para mmHg inteiros antes de
+classificar, como o monitor mostra a PAM. Sem isso, uma borda que fica
+"raspando" um limiar (64,9 / 65,1 / 64,8…) cria vários períodos de 1 a 4 s.
 """
-function periodos_de_risco(t, inf, sup; limiares = LIMIARES)
+function periodos_de_risco(t, inf, sup; limiares = LIMIARES, arredondar = true)
+    if arredondar
+        inf, sup = round.(inf), round.(sup)
+    end
     periodos = []
     for k in eachindex(t)
         pior, melhor = nivel(inf[k]; limiares), nivel(sup[k]; limiares)
