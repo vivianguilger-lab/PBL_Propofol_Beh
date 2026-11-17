@@ -118,3 +118,27 @@ end
         @test variancia(η_c50) ≈ ω²_SU_C50_RPT rtol = 0.05
     end
 end
+
+@testset "Arredondamento evita períodos picotados" begin
+    # borda de cima "raspando" os 65 mmHg: 65,2 / 64,8 / 65,3 / 64,9
+    t = 0:3
+    inf = [60.0, 60.0, 60.0, 60.0]
+    sup = [65.2, 64.8, 65.3, 64.9]
+    @test length(periodos_de_risco(t, inf, sup; arredondar = false)) == 4   # picotado
+    @test length(periodos_de_risco(t, inf, sup)) == 1                       # tudo vira 65: um período só
+end
+
+@testset "Gráfico da faixa (SVG)" begin
+    @test PropofolWK.escala(0, 0, 10, 100, 200) == 100      # início do intervalo
+    @test PropofolWK.escala(10, 0, 10, 100, 200) == 200     # fim do intervalo
+    @test PropofolWK.escala(5, 0, 10, 100, 200) == 150      # meio
+    t = collect(0.0:600.0)
+    faixa = (inf = fill(60.0, 601), mediana = fill(70.0, 601), sup = fill(80.0, 601))
+    arquivo = grafico_faixa(joinpath(mktempdir(), "teste.svg"), t, faixa; titulo = "Teste <&>")
+    svg = read(arquivo, String)
+    @test startswith(svg, "<svg")
+    @test occursin("Tempo após o início do bolus (s)", svg)
+    @test occursin("PAM (mmHg)", svg)
+    @test occursin("<polygon", svg) && occursin("<polyline", svg)
+    @test occursin("Teste &lt;&amp;&gt;", svg)              # título com caracteres especiais escapados
+end
