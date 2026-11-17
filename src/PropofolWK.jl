@@ -4,13 +4,17 @@ module PropofolWK
 
 # LinearAlgebra: contas com matrizes (usada na farmacocinética)
 using LinearAlgebra
+# Random: sorteios reprodutíveis (usada nos pacientes virtuais)
+using Random
 
 include("farmacocinetica.jl")
 include("hemodinamica.jl")
 include("risco.jl")
+include("populacao.jl")
 
 export parametros_eleveld, simular_pk, taxa_bolus
 export ParametrosSu, simular_hemodinamica
 export LIMIARES, nivel, percentil, faixa_pam, periodos_de_risco, descrever
+export ω²_ELEVELD, ω²_SU_C50_RPT, sortear_paciente, simular_populacao
 
 end
