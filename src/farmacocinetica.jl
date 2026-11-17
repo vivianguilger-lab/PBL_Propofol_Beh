@@ -87,14 +87,13 @@ function parametros_eleveld(idade, peso, altura, sexo; opioide = false)
 end
 
 """
-    simular_pk(pk, taxa; dt = 1.0)
+    matrizes_pk(pk; dt = 1.0)
 
-Concentração plasmática (µg/ml) a cada `dt` segundos, para uma infusão `taxa`
-(mg/s) dada a cada `dt` segundos. `pk` vem de `parametros_eleveld`.
-Modelo de 3 compartimentos (sangue, músculo, gordura), resolvido de forma exata
-entre amostras com a taxa constante no passo, como o PAS (pk_models.py L630–L664).
+Matrizes da solução exata do modelo de 3 compartimentos (sangue, músculo,
+gordura) para um passo de `dt` segundos com a taxa constante no passo, como o
+PAS (pk_models.py L630–L664): x(t+dt) = Φ·x(t) + Γ·taxa. A Cp é x[1].
 """
-function simular_pk(pk, taxa; dt = 1.0)
+function matrizes_pk(pk; dt = 1.0)
     # taxas de transferência entre compartimentos, de 1/min para 1/s (PAS L526–L536)
     k10, k12, k13 = pk.CL / pk.V1, pk.Q2 / pk.V1, pk.Q3 / pk.V1
     k21, k31 = pk.Q2 / pk.V2, pk.Q3 / pk.V3
@@ -102,9 +101,19 @@ function simular_pk(pk, taxa; dt = 1.0)
          k21 -k21 0.0;
          k31 0.0 -k31] ./ 60
     B = [1 / pk.V1, 0.0, 0.0]          # a dose entra no sangue (compartimento 1)
-    # solução exata em um passo: x(t+dt) = Φ·x(t) + Γ·taxa
     Φ = exp(A .* dt)
     Γ = A \ ((Φ - I) * B)
+    return Φ, Γ
+end
+
+"""
+    simular_pk(pk, taxa; dt = 1.0)
+
+Concentração plasmática (µg/ml) a cada `dt` segundos, para uma infusão `taxa`
+(mg/s) dada a cada `dt` segundos. `pk` vem de `parametros_eleveld`.
+"""
+function simular_pk(pk, taxa; dt = 1.0)
+    Φ, Γ = matrizes_pk(pk; dt)
     x = zeros(3)
     cp = zeros(length(taxa))
     for k in eachindex(taxa)
