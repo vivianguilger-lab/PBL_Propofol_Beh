@@ -142,3 +142,28 @@ end
     @test occursin("<polygon", svg) && occursin("<polyline", svg)
     @test occursin("Teste &lt;&amp;&gt;", svg)              # título com caracteres especiais escapados
 end
+
+@testset "Concentração-alvo (TCI no plasma)" begin
+    pk = parametros_eleveld(62, 72, 160, "F")
+    @testset "sem limite de bomba: Cp igual ao alvo a partir do 2º segundo" begin
+        taxa = taxa_alvo(pk, 3.0, 600)
+        cp = simular_pk(pk, taxa)
+        @test cp[1] == 0.0                      # antes da infusão
+        @test all(c -> c ≈ 3.0, cp[2:end])      # depois, sempre no alvo
+        @test all(>=(0), taxa)                  # nunca negativa
+    end
+    @testset "com limite de bomba: sobe até o alvo e fica nele" begin
+        taxa = taxa_alvo(pk, 3.0, 600; taxa_max = 2.0)
+        cp = simular_pk(pk, taxa)
+        @test maximum(taxa) <= 2.0
+        @test cp[5] < 3.0                       # nos primeiros segundos ainda não chegou
+        @test cp[end] ≈ 3.0
+    end
+    @testset "alvo que cai: a bomba para até a Cp baixar" begin
+        alvos = [fill(4.0, 300); fill(2.0, 300)]
+        taxa = taxa_alvo(pk, alvos, 600)
+        cp = simular_pk(pk, taxa)
+        @test taxa[301] == 0.0                  # logo após a troca, bomba parada
+        @test cp[end] ≈ 2.0                     # e depois mantém o novo alvo
+    end
+end
