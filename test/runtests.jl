@@ -1,6 +1,6 @@
 # Testes do PropofolWK. Rodar no Julia, na pasta do projeto:  ] test
 using PropofolWK
-using Test
+using Test, Random
 
 # ler_csv(arquivo): lê uma tabela gerada pelo PAS. A 1ª linha tem os nomes das
 # colunas; as outras, números separados por vírgula. Devolve uma função col:
@@ -84,5 +84,37 @@ end
                (4, 4, :moderado, :baixo), (5, 5, :baixo, :baixo)]
         @test p[1].pam_min == 70.0 && p[1].pam_max == 90.0
         @test descrever(p)[3] == "de 3 a 3 s: PAM entre 50 e 70 mmHg — risco entre alto e baixo"
+    end
+end
+
+@testset "Pacientes virtuais (variabilidade publicada)" begin
+    taxa = taxa_bolus(1.5 * 72, 30, 301)       # 300 s, para o teste ser rápido
+    paciente = (62, 72, 160, "F", 104.0, 78.0)
+    @testset "mesma semente, mesmas curvas" begin
+        a = simular_populacao(paciente..., taxa; n = 5, semente = 7)
+        b = simular_populacao(paciente..., taxa; n = 5, semente = 7)
+        c = simular_populacao(paciente..., taxa; n = 5, semente = 8)
+        @test a.curvas == b.curvas
+        @test a.curvas != c.curvas
+    end
+    @testset "sem variabilidade, todas as versões são o paciente típico" begin
+        zero_pk = map(_ -> 0.0, ω²_ELEVELD)    # todos os ω² = 0
+        pop = simular_populacao(paciente..., taxa; n = 3, ω²_pk = zero_pk, ω²_c50 = 0.0)
+        tipico = simular_hemodinamica(simular_pk(parametros_eleveld(62, 72, 160, "F"), taxa), 104.0, 78.0, 62).pam
+        @test all(c -> c ≈ tipico, pop.curvas)
+    end
+    @testset "o sorteio tem média 0 e variância ω² (em escala log)" begin
+        rng = Xoshiro(1)
+        pk = parametros_eleveld(62, 72, 160, "F")
+        psu = ParametrosSu()
+        versoes = [sortear_paciente(pk, psu, rng) for _ in 1:20000]
+        η_v1 = [log(v[1].V1 / pk.V1) for v in versoes]
+        η_c50 = [log(v[2].c50_rpt / psu.c50_rpt) for v in versoes]
+        media(x) = sum(x) / length(x)
+        variancia(x) = sum((x .- media(x)) .^ 2) / (length(x) - 1)
+        @test abs(media(η_v1)) < 0.02
+        @test variancia(η_v1) ≈ ω²_ELEVELD.V1 rtol = 0.05
+        @test abs(media(η_c50)) < 0.02
+        @test variancia(η_c50) ≈ ω²_SU_C50_RPT rtol = 0.05
     end
 end
