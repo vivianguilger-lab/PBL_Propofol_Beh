@@ -8,15 +8,15 @@
 #
 # Só a parte do propofol: com remifentanil = 0, todos os termos do remifentanil                  DÚVIDA: Eu não quero medir o remifetanil, 
 # do modelo original valem exatamente zero.                                                      pq nosso foco é o propofol, mas se eu igualo 
-#                                                                                                ele à 0 não pode mudar a análise
-# Implementação de referência: Python Anesthesia Simulator (PAS), commit 4afc03a,
-# src/python_anesthesia_simulator/pd_models.py, classe Hemo_meca_PD_model (L890).
+#                                                                                                ele à 0 não pode mudar a análise.
+# Implementação de referência: Python Anesthesia Simulator (PAS), commit 4afc03a,                Verificação: Zerar todos os coeficientes do modelo invalida alguma hipotese dele
+# src/python_anesthesia_simulator/pd_models.py, classe Hemo_meca_PD_model (L890).                Ou seja, se zero pode fazer parte do conjunto solução dos coeficientes do remifetanil, de acordo com modelo escolhido.
 #
 # Unidades: tempo em segundos; concentração plasmática de propofol (Cp) em µg/ml;
 # PAM em mmHg; FC em bpm.
 # =============================================================================
 
-# Curva sigmoide (Hill): vai de 0 (sem propofol) a 1 (efeito máximo).
+# Curva sigmoide (Hill): vai de 0 (sem propofol) a 1 (efeito máximo).                            Indicação que a verificação é verdade, mas, verificar de novo.
 # c50 = concentração que dá metade do efeito; γ = inclinação da curva.
 # PAS: pd_models.py L11.
 fsig(x, c50, γ) = x^γ / (c50^γ + x^γ)
