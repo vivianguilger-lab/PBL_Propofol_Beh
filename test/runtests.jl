@@ -50,3 +50,39 @@ end
         @test minimum(r.pam) ≈ minimum(col("pam_pas")) atol = 1e-3
     end
 end
+
+@testset "Faixa e períodos de risco" begin
+    @testset "níveis de risco" begin
+        @test nivel(70.0) == :baixo
+        @test nivel(65.0) == :baixo       # 65 já é baixo (PAM ≥ 65)
+        @test nivel(60.0) == :moderado
+        @test nivel(55.0) == :moderado
+        @test nivel(50.0) == :alto
+    end
+    @testset "percentil (igual ao PERCENTIL do Excel)" begin
+        # no Excel: =PERCENTIL({10;20;30;40};0,25) dá 17,5
+        @test percentil([40.0, 10.0, 30.0, 20.0], 0.25) ≈ 17.5
+        @test percentil([40.0, 10.0, 30.0, 20.0], 0.5) ≈ 25.0
+        @test percentil([40.0, 10.0, 30.0, 20.0], 1.0) ≈ 40.0
+    end
+    @testset "faixa: percentis entre curvas" begin
+        # 101 curvas constantes, de 0 a 100 mmHg: percentil 5 = 5, mediana = 50, percentil 95 = 95
+        curvas = [fill(Float64(v), 4) for v in 0:100]
+        f = faixa_pam(curvas)
+        @test f.inf ≈ fill(5.0, 4)
+        @test f.mediana ≈ fill(50.0, 4)
+        @test f.sup ≈ fill(95.0, 4)
+    end
+    @testset "períodos" begin
+        # faixa inventada só para testar a lógica: 6 instantes, de 0 a 5 s
+        t = 0:5
+        inf = [80.0, 70.0, 60.0, 50.0, 60.0, 70.0]
+        sup = [90.0, 85.0, 75.0, 70.0, 75.0, 80.0]
+        p = periodos_de_risco(t, inf, sup)
+        @test [(x.inicio, x.fim, x.pior, x.melhor) for x in p] ==
+              [(0, 1, :baixo, :baixo), (2, 2, :moderado, :baixo), (3, 3, :alto, :baixo),
+               (4, 4, :moderado, :baixo), (5, 5, :baixo, :baixo)]
+        @test p[1].pam_min == 70.0 && p[1].pam_max == 90.0
+        @test descrever(p)[3] == "de 3 a 3 s: PAM entre 50 e 70 mmHg — risco entre alto e baixo"
+    end
+end
