@@ -7,7 +7,7 @@ dizer que ainda falta conferir ou decidir.
 
 | # | Decisão | Por quê / fonte | Situação |
 |---|---|---|---|
-| 1 | Só propofol. O remifentanil entra com **concentração zero** (os coeficientes do Su ficam como publicados). | Foco do projeto. Com concentração 0, a curva do remifentanil, C/(C50 + C), dá 0: não há divisão por zero e o efeito do propofol fica igual ao do artigo. Zerar os *coeficientes* quebraria o modelo (C50 = 0 dá 0/0). | **Pendente:** dúvida para a Beatriz (item 11). Conferir no artigo se houve períodos só com propofol. |
+| 1 | Só propofol. O remifentanil entra com **concentração zero** (os coeficientes do Su ficam como publicados). | Foco do projeto. Com concentração 0, a curva do remifentanil, C/(C50 + C), dá 0: não há divisão por zero e o efeito do propofol fica igual ao do artigo. Zerar os *coeficientes* quebraria o modelo (C50 = 0 dá 0/0). | **Pendente:** dúvida sobre usar dados de indução combinada do propofol e remifetanil ou tentar achar só do propofol. Conferir no artigo se houve períodos só com propofol. |
 
 ## Modelo
 
