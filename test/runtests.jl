@@ -167,3 +167,28 @@ end
         @test cp[end] ≈ 2.0                     # e depois mantém o novo alvo
     end
 end
+
+@testset "Previsão completa" begin
+    paciente = (idade = 70, peso = 80, altura = 175, sexo = "M", pam = 75.0, fc = 70.0)
+    @testset "modo dose: igual a montar as partes à mão" begin
+        r = prever(; paciente..., dose_mgkg = 2.0, duracao_s = 300, n = 20)
+        pop = simular_populacao(70, 80, 175, "M", 75.0, 70.0, taxa_bolus(160.0, 30, 301); n = 20)
+        @test r.faixa.mediana ≈ faixa_pam(pop.curvas).mediana
+        @test sum(r.taxa) ≈ 160.0               # 2 mg/kg × 80 kg
+    end
+    @testset "modo dose com manutenção" begin
+        r = prever(; paciente..., dose_mgkg = 2.0, manutencao_mgkgh = 6.0, duracao_s = 300, n = 5)
+        @test r.taxa[1] ≈ 160.0 / 30            # durante o bolus
+        @test r.taxa[end] ≈ 6.0 * 80 / 3600     # depois, só a manutenção (mg/s)
+    end
+    @testset "modo concentração-alvo" begin
+        r = prever(; paciente..., alvo_ugml = 3.0, duracao_s = 300, n = 5)
+        @test r.taxa ≈ taxa_alvo(parametros_eleveld(70, 80, 175, "M"), 3.0, 301)
+    end
+    @testset "entradas inválidas dão erro com explicação" begin
+        @test_throws ErrorException prever(; paciente...)                                   # nenhuma entrada
+        @test_throws ErrorException prever(; paciente..., dose_mgkg = 2.0, alvo_ugml = 3.0) # as duas
+        @test_throws ErrorException prever(; paciente..., sexo = "X", dose_mgkg = 2.0)
+        @test_throws ErrorException prever(; paciente..., peso = -1, dose_mgkg = 2.0)
+    end
+end
