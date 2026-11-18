@@ -19,13 +19,12 @@ escala(v, a, b, p0, p1) = p0 + (v - a) / (b - a) * (p1 - p0)
 escapar(s) = replace(string(s), "&" => "&amp;", "<" => "&lt;", ">" => "&gt;")
 
 """
-    grafico_faixa(arquivo, t, faixa; titulo = "", limiares = LIMIARES)
+    svg_faixa(t, faixa; titulo = "", limiares = LIMIARES)
 
-Salva em `arquivo` (.svg) o gráfico da faixa da PAM ao longo do tempo.
+Gráfico da faixa da PAM ao longo do tempo, como texto SVG.
 `t` é o tempo (s) e `faixa` vem de `faixa_pam` (`inf`, `mediana`, `sup`).
-Devolve o caminho do arquivo.
 """
-function grafico_faixa(arquivo, t, faixa; titulo = "", limiares = LIMIARES)
+function svg_faixa(t, faixa; titulo = "", limiares = LIMIARES)
     # tamanho da imagem e margens (pixels)
     L, A = 900, 500
     esq, dir, topo, base = 70, 110, 50, 60
@@ -37,7 +36,7 @@ function grafico_faixa(arquivo, t, faixa; titulo = "", limiares = LIMIARES)
     Y(v) = escala(v, y0, y1, A - base, topo)        # no SVG o y cresce para baixo
 
     s = IOBuffer()
-    println(s, """<svg xmlns="http://www.w3.org/2000/svg" width="$L" height="$A" font-family="sans-serif" font-size="13">""")
+    println(s, """<svg xmlns="http://www.w3.org/2000/svg" width="$L" height="$A" viewBox="0 0 $L $A" font-family"sans-serif" font-size="13">""")
     println(s, """<rect width="$L" height="$A" fill="white"/>""")
 
     # zonas de risco: retângulos de fundo, com o nome à direita
@@ -78,6 +77,8 @@ function grafico_faixa(arquivo, t, faixa; titulo = "", limiares = LIMIARES)
     println(s, """<text x="$(L - dir - 278)" y="$(topo + 39)" fill="$(CORES.texto)">mediana</text>""")
 
     println(s, "</svg>")
-    write(arquivo, take!(s))
-    return arquivo
+    return String(take!(s))
 end
+
+# grafico_faixa: grava o gráfico em `arquivo` (.svg) e devolve o caminho do arquivo.
+grafico_faixa(arquivo, t, faixa; kw...) = (write(arquivo, svg_faixa(t, faixa; kw...)); arquivo)
