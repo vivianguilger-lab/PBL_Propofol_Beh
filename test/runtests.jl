@@ -1,6 +1,6 @@
 # Testes do PropofolWK. Rodar no Julia, na pasta do projeto:  ] test
 using PropofolWK
-using Test, Random
+using Test, Random, Sockets
 
 # ler_csv(arquivo): lê uma tabela gerada pelo PAS. A 1ª linha tem os nomes das
 # colunas; as outras, números separados por vírgula. Devolve uma função col:
@@ -190,5 +190,40 @@ end
         @test_throws ErrorException prever(; paciente..., dose_mgkg = 2.0, alvo_ugml = 3.0) # as duas
         @test_throws ErrorException prever(; paciente..., sexo = "X", dose_mgkg = 2.0)
         @test_throws ErrorException prever(; paciente..., peso = -1, dose_mgkg = 2.0)
+    end
+end
+
+@testset "Plataforma (servidor local)" begin
+    @testset "leitura do endereço" begin
+        @test PropofolWK.decodificar_url("2%2C5+mg") == "2,5 mg"
+        @test PropofolWK.ler_parametros("idade=70&sexo=M&manut=") == Dict("idade" => "70", "sexo" => "M", "manut" => "")
+    end
+    @testset "JSON" begin
+        @test PropofolWK.json((ok = true, x = 1.234, s = "a\"b", v = [1, 2])) == "{\"ok\":true,\"x\":1.23,\"s\":\"a\\\"b\",\"v\":[1,2]}"
+    end
+    # pede um endereço ao servidor, como o navegador faz, e devolve o conteúdo da resposta
+    function pedir(porta, caminho)
+        sock = connect(IPv4(127, 0, 0, 1), porta)
+        write(sock, "GET $caminho HTTP/1.1\r\nHost: teste\r\n\r\n")
+        resposta = read(sock, String)
+        close(sock)
+        return split(resposta, "\r\n\r\n"; limit = 2)
+    end
+    servidor = PropofolWK.iniciar_servidor(8765)
+    try
+        cab, corpo = pedir(8765, "/")
+        @test startswith(cab, "HTTP/1.1 200")
+        @test occursin("<form", corpo)
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=")
+        @test occursin("\"ok\":true", corpo)
+        @test occursin("<svg", corpo)
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=alvo&alvo=3%2C0")
+        @test occursin("\"ok\":true", corpo)                  # vírgula decimal aceita
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30")
+        @test occursin("Preencha o campo: peso.", corpo)     # erro explicado para o médico
+        cab, corpo = pedir(8765, "/outra")
+        @test startswith(cab, "HTTP/1.1 404")
+    finally
+        close(servidor)
     end
 end
