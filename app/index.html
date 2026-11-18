@@ -1,0 +1,169 @@
+<!doctype html>
+<!-- Página da plataforma. Aberta pelo servidor (src/servidor.jl) em http://127.0.0.1:8080.
+     O formulário envia os dados para /api/prever; a resposta traz o gráfico e os períodos. -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Previsão de PAM na indução com propofol</title>
+<style>
+  /* Cores e fontes da página */
+  :root { --fundo: #f5f6f8; --cartao: #ffffff; --texto: #1f2328; --suave: #5f6670; --borda: #dde1e6;
+          --azul: #2a78d6; --baixo: #1e8e3e; --moderado: #c77700; --alto: #c62828; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--texto); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+  header { background: #16324f; color: #fff; padding: 16px 24px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 2px 0 0; opacity: .8; font-size: 13px; }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 20px; padding: 20px 24px; max-width: 1400px; margin: auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .cartao { background: var(--cartao); border: 1px solid var(--borda); border-radius: 12px; padding: 18px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); margin: 16px 0 8px; }
+  h2:first-child { margin-top: 0; }
+  label { display: block; font-size: 13px; color: var(--suave); margin-bottom: 8px; }
+  input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; font: inherit; margin-top: 3px; }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* Botões de escolha (sexo e modo de entrada) */
+  .escolha { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; margin: 3px 0 8px; }
+  .escolha button { border: 0; background: #fff; padding: 8px 4px; font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; color: var(--suave); }
+  .escolha button.ativo { background: var(--azul); color: #fff; }
+  .escondido { display: none; }
+  #prever { width: 100%; margin-top: 12px; padding: 11px; border: 0; border-radius: 8px; background: var(--azul); color: #fff; font: 600 15px system-ui, sans-serif; cursor: pointer; }
+  #prever:disabled { opacity: .6; cursor: wait; }
+  #erro { color: var(--alto); font-size: 14px; margin-top: 10px; }
+  /* Resultado */
+  #vazio { color: var(--suave); text-align: center; padding: 60px 20px; }
+  #resumo { border-left: 6px solid var(--baixo); padding: 10px 14px; margin-bottom: 14px; background: #fafbfc; border-radius: 6px; }
+  #resumo b { font-size: 18px; }
+  #grafico svg { width: 100%; height: auto; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--borda); }
+  th { color: var(--suave); font-weight: 500; font-size: 12px; text-transform: uppercase; }
+  .nivel { font-weight: 600; }
+  .baixo { color: var(--baixo); } .moderado { color: var(--moderado); } .alto { color: var(--alto); }
+  footer { max-width: 1400px; margin: 0 auto 24px; padding: 0 24px; color: var(--suave); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Previsão da PAM na indução com propofol</h1>
+  <p>PBL | 6º Semestre — faixa prevista e períodos de risco de hipotensão</p>
+</header>
+
+<main>
+  <!-- Formulário: dados do paciente e escolha da entrada -->
+  <form class="cartao" id="formulario">
+    <h2>Paciente</h2>
+    <div class="duas">
+      <label>Idade (anos)<input name="idade" type="number" min="1" step="1" value="70" required></label>
+      <label>Sexo
+        <div class="escolha" data-campo="sexo">
+          <button type="button" data-valor="M" class="ativo">Masc.</button>
+          <button type="button" data-valor="F">Fem.</button>
+        </div>
+      </label>
+      <label>Peso (kg)<input name="peso" type="number" min="1" step="0.1" value="80" required></label>
+      <label>Altura (cm)<input name="altura" type="number" min="1" step="1" value="175" required></label>
+    </div>
+    <input type="hidden" name="sexo" value="M">
+
+    <h2>Monitor antes da indução</h2>
+    <div class="duas">
+      <label>PAM (mmHg)<input name="pam" type="number" min="1" step="1" value="75" required></label>
+      <label>FC (bpm)<input name="fc" type="number" min="1" step="1" value="70" required></label>
+    </div>
+
+    <h2>Propofol</h2>
+    <div class="escolha" data-campo="modo">
+      <button type="button" data-valor="dose" class="ativo">Dose</button>
+      <button type="button" data-valor="alvo">Concentração-alvo</button>
+    </div>
+    <input type="hidden" name="modo" value="dose">
+    <div id="campos-dose">
+      <div class="duas">
+        <label>Dose (mg/kg)<input name="dose" type="number" min="0" step="0.05" value="2"></label>
+        <label>Tempo de injeção
+          <select name="bolus"><option value="10">10 s</option><option value="20">20 s</option>
+            <option value="30" selected>30 s</option><option value="60">60 s</option><option value="120">120 s</option></select>
+        </label>
+      </div>
+      <label>Manutenção (mg/kg/h, opcional)<input name="manut" type="number" min="0" step="0.5" placeholder="0"></label>
+    </div>
+    <div id="campos-alvo" class="escondido">
+      <label>Concentração plasmática-alvo (µg/ml)<input name="alvo" type="number" min="0" step="0.1" value="3"></label>
+    </div>
+
+    <button id="prever" type="submit">Prever</button>
+    <div id="erro"></div>
+  </form>
+
+  <!-- Resultado: resumo, gráfico e tabela de períodos -->
+  <section class="cartao">
+    <div id="vazio">Preencha os dados e clique em <b>Prever</b>.<br>O cálculo leva alguns segundos.</div>
+    <div id="resultado" class="escondido">
+      <div id="resumo"></div>
+      <div id="grafico"></div>
+      <table>
+        <thead><tr><th>Período</th><th>PAM prevista</th><th>Risco</th></tr></thead>
+        <tbody id="periodos"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Ferramenta de ensino e pesquisa. Não substitui a avaliação e a decisão clínica do anestesiologista.
+  Modelo: farmacocinética de Eleveld (2018) e efeito hemodinâmico de Su (2023), com a variabilidade
+  publicada; parâmetros estimados em voluntários, ainda não validados em pacientes (ver docs/decisoes.md).
+</footer>
+
+<script>
+// Botões de escolha: marcam o botão clicado e guardam o valor no campo escondido.
+document.querySelectorAll(".escolha").forEach(grupo => {
+  grupo.querySelectorAll("button").forEach(botao => botao.onclick = () => {
+    grupo.querySelectorAll("button").forEach(b => b.classList.toggle("ativo", b === botao));
+    document.querySelector(`input[name=${grupo.dataset.campo}]`).value = botao.dataset.valor;
+    if (grupo.dataset.campo === "modo") {
+      // mostra só os campos da entrada escolhida
+      document.getElementById("campos-dose").classList.toggle("escondido", botao.dataset.valor !== "dose");
+      document.getElementById("campos-alvo").classList.toggle("escondido", botao.dataset.valor !== "alvo");
+    }
+  });
+});
+
+// Ordem dos níveis de risco, para achar o pior período.
+const ORDEM = { baixo: 0, moderado: 1, alto: 2 };
+
+// Envia o formulário ao servidor e mostra a resposta.
+document.getElementById("formulario").onsubmit = async evento => {
+  evento.preventDefault();
+  const botao = document.getElementById("prever"), erro = document.getElementById("erro");
+  botao.disabled = true; botao.textContent = "Calculando…"; erro.textContent = "";
+  try {
+    const dados = new URLSearchParams(new FormData(evento.target));
+    const r = await (await fetch("/api/prever?" + dados)).json();
+    if (!r.ok) { erro.textContent = r.erro; return; }
+    // Resumo: o pior caso (borda de baixo da faixa) ao longo de toda a previsão.
+    const pior = r.periodos.reduce((a, p) => ORDEM[p.pior] > ORDEM[a.pior] || (p.pior === a.pior && p.pam_min < a.pam_min) ? p : a);
+    const resumo = document.getElementById("resumo");
+    resumo.style.borderLeftColor = `var(--${pior.pior})`;
+    resumo.innerHTML = `<b class="${pior.pior}">Pior caso: risco ${pior.pior}</b><br>` +
+      `A PAM pode chegar a <b>${Math.round(pior.pam_min)} mmHg</b> entre ${Math.round(pior.inicio)} e ${Math.round(pior.fim)} s ` +
+      `(em 90% das versões simuladas do paciente, a PAM fica dentro da faixa azul).`;
+    document.getElementById("grafico").innerHTML = r.svg;
+    document.getElementById("periodos").innerHTML = r.periodos.map(p =>
+      `<tr><td>${Math.round(p.inicio)} a ${Math.round(p.fim)} s</td>` +
+      `<td>${Math.round(p.pam_min)} a ${Math.round(p.pam_max)} mmHg</td>` +
+      `<td class="nivel"><span class="${p.pior}">${p.pior}</span>` +
+      (p.pior === p.melhor ? "" : ` a <span class="${p.melhor}">${p.melhor}</span>`) + `</td></tr>`).join("");
+    document.getElementById("vazio").classList.add("escondido");
+    document.getElementById("resultado").classList.remove("escondido");
+  } catch (e) {
+    erro.textContent = "Sem resposta do servidor. A janela do Julia ainda está aberta?";
+  } finally {
+    botao.disabled = false; botao.textContent = "Prever";
+  }
+};
+</script>
+</body>
+</html>
