@@ -23,6 +23,6 @@ export ParametrosSu, simular_hemodinamica
 export LIMIARES, nivel, percentil, faixa_pam, periodos_de_risco, descrever
 export ω²_ELEVELD, ω²_SU_C50_RPT, sortear_paciente, simular_populacao
 export svg_faixa, grafico_faixa
-export prever, plataforma
+export prever, risco_por_dose, plataforma
 
 end

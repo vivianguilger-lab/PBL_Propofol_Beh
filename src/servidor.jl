@@ -123,21 +123,16 @@ end
 """
     responder_comparar(p)
 
-Mesmo paciente, várias doses (0,5 a 3,0 mg/kg, de 0,25 em 0,25) ou vários alvos
-(1 a 6 µg/ml, de 0,5 em 0,5), conforme o modo. Para ser rápido, usa 100 versões
-do paciente em cada uma. Devolve, para cada uma, a PAM mínima da mediana e do
-pior caso, a queda, os segundos abaixo de 65 e de 55 e o risco do pior caso.
+Gráfico pressão × dose: o mesmo paciente (paciente típico) com 61 doses, de 0 a
+3,0 mg/kg de 0,05 em 0,05, ou 61 concentrações-alvo, de 0 a 6 µg/ml de 0,1 em
+0,1, conforme o modo. Para cada uma: PAM mínima, queda, segundos abaixo de 65 e
+de 55 e o nível de risco (ver `risco_por_dose`).
 """
 responder_comparar(p) = responder() do
     paciente, modo, entrada = ler_formulario(p)
-    valores = modo == "alvo" ? collect(1.0:0.5:6.0) : collect(0.5:0.25:3.0)
-    linhas = map(valores) do v
-        e = modo == "alvo" ? (alvo_ugml = v,) : merge(entrada, (dose_mgkg = v,))
-        r = prever(; paciente..., e..., n = 100)
-        m = r.metricas
-        (valor = v, mg = sum(r.taxa), pam_nadir = m.pam_nadir, pam_pior = m.pam_pior, queda_pct = m.queda_pct,
-         s_abaixo_65 = m.s_abaixo_65, s_abaixo_55 = m.s_abaixo_55, risco = m.risco)
-    end
+    valores = modo == "alvo" ? collect(0.0:0.1:6.0) : collect(0.0:0.05:3.0)
+    extra = modo == "alvo" ? (;) : (duracao_bolus_s = entrada.duracao_bolus_s, manutencao_mgkgh = entrada.manutencao_mgkgh)
+    linhas = risco_por_dose(valores; paciente..., modo, extra...)
     (ok = true, modo = modo, linhas = linhas)
 end
 
