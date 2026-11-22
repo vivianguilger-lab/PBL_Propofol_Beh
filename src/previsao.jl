@@ -24,8 +24,10 @@ Entrada (escolha UMA):
   de `manutencao_mgkgh` mg/kg/h (0 = sem manutenção);
 - `alvo_ugml`: concentração plasmática-alvo em µg/ml.
 
-Devolve `(t, taxa, faixa, periodos, texto)`: tempo (s), taxa de infusão (mg/s),
-faixa da PAM (`inf`, `mediana`, `sup`), períodos de risco e uma frase por período.
+Devolve `(t, taxa, faixa, periodos, texto, fc, cp, rpt, vs, metricas, pk)`:
+tempo (s), taxa de infusão (mg/s), faixa da PAM (`inf`, `mediana`, `sup`),
+períodos de risco e uma frase por período; faixas da FC e da Cp; medianas da RPT
+e do VS (fração do basal); o resumo (`metricas`) e a farmacocinética típica (`pk`).
 """
 function prever(; idade, peso, altura, sexo, pam, fc,
                   dose_mgkg = nothing, duracao_bolus_s = 30, manutencao_mgkgh = 0,
@@ -51,5 +53,36 @@ function prever(; idade, peso, altura, sexo, pam, fc,
     pop = simular_populacao(idade, peso, altura, sexo, pam, fc, taxa; n, semente)
     faixa = faixa_pam(pop.curvas)
     periodos = periodos_de_risco(pop.t, faixa.inf, faixa.sup)
-    return (t = pop.t, taxa = taxa, faixa = faixa, periodos = periodos, texto = descrever(periodos))
+    # as outras saídas, também como faixa (FC e Cp) ou mediana (RPT e VS)
+    faixa_fc, faixa_cp = faixa_pam(pop.fc), faixa_pam(pop.cp)
+    rpt, vs = faixa_pam(pop.rpt).mediana, faixa_pam(pop.vs).mediana
+    mt = metricas(pop.t, pam, fc, faixa, faixa_fc, faixa_cp, rpt, vs)
+    return (t = pop.t, taxa = taxa, faixa = faixa, periodos = periodos, texto = descrever(periodos),
+            fc = faixa_fc, cp = faixa_cp, rpt = rpt, vs = vs, metricas = mt,
+            pk = parametros_eleveld(idade, peso, altura, sexo))
+end
+
+"""
+    metricas(t, pam_basal, fc_basal, faixa, fc, cp, rpt, vs; limiares = LIMIARES)
+
+Resumo da previsão, para o cartão de risco e os blocos de números:
+- PAM mínima da mediana (`pam_nadir`, em `t_nadir` s) e queda em % da basal;
+- pior caso: PAM mínima da borda de baixo da faixa (`pam_pior`, em `t_pior` s) e o
+  nível de risco dele (`risco`, com a PAM arredondada, como em `periodos_de_risco`);
+- segundos com PAM abaixo de 65 e de 55, na mediana e no pior caso;
+- FC mínima e Cp máxima (medianas);
+- variação (%) de RPT, VS e FC no instante da PAM mínima da mediana.
+"""
+function metricas(t, pam_basal, fc_basal, faixa, fc, cp, rpt, vs; limiares = LIMIARES)
+    dt = t[2] - t[1]
+    abaixo(curva, l) = dt * count(<(l), curva)        # segundos abaixo do limiar
+    i, j, k = argmin(faixa.mediana), argmin(faixa.inf), argmax(cp.mediana)
+    return (pam_basal = pam_basal, pam_nadir = faixa.mediana[i], t_nadir = t[i],
+            queda_pct = 100 * (1 - faixa.mediana[i] / pam_basal),
+            pam_pior = faixa.inf[j], t_pior = t[j], risco = nivel(round(faixa.inf[j]); limiares),
+            s_abaixo_65 = abaixo(faixa.mediana, limiares.moderado), s_abaixo_65_pior = abaixo(faixa.inf, limiares.moderado),
+            s_abaixo_55 = abaixo(faixa.mediana, limiares.alto), s_abaixo_55_pior = abaixo(faixa.inf, limiares.alto),
+            fc_min = minimum(fc.mediana), cp_max = cp.mediana[k], t_cp_max = t[k],
+            rpt_nadir_pct = 100 * (rpt[i] - 1), vs_nadir_pct = 100 * (vs[i] - 1),
+            fc_nadir_pct = 100 * (fc.mediana[i] / fc_basal - 1))
 end

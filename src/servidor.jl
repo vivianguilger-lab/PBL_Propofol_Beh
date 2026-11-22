@@ -12,6 +12,7 @@
 # Endereços que o servidor entende:
 #   /                  → a página (app/index.html)
 #   /api/prever?...    → a previsão, em JSON (formato de dados que a página lê)
+#   /api/comparar?...  → o mesmo paciente com várias doses ou alvos (cartão 06)
 # =============================================================================
 
 # ---------------------------------------------------------------- JSON
@@ -64,33 +65,80 @@ function numero(p, chave, nome)
     return v
 end
 
-"""
-    responder_previsao(p)
+# Lê os dados do paciente e a entrada (dose ou alvo) dos campos do formulário.
+# A manutenção chega em µg/kg/min (como na bomba) e vai para o modelo em mg/kg/h (× 60 ÷ 1000).
+function ler_formulario(p)
+    paciente = (idade = numero(p, "idade", "idade"), peso = numero(p, "peso", "peso"),
+                altura = numero(p, "altura", "altura"), sexo = get(p, "sexo", ""),
+                pam = numero(p, "pam", "PAM"), fc = numero(p, "fc", "FC"))
+    modo = get(p, "modo", "dose")
+    manut = haskey(p, "manut") && !isempty(strip(p["manut"])) ? numero(p, "manut", "manutenção") : 0.0
+    entrada = modo == "alvo" ? (alvo_ugml = numero(p, "alvo", "concentração-alvo"),) :
+        (dose_mgkg = numero(p, "dose", "dose"),
+         duracao_bolus_s = round(Int, numero(p, "bolus", "tempo de injeção")),
+         manutencao_mgkgh = manut * 60 / 1000)
+    return paciente, modo, entrada
+end
 
-Recebe os campos do formulário (Dict) e devolve o texto JSON da resposta:
-`{"ok": true, "svg": ..., "texto": [...], "periodos": [...]}` ou
-`{"ok": false, "erro": "mensagem"}`.
-"""
-function responder_previsao(p)
+# Resposta JSON com tratamento de erro: se `f()` der erro, devolve {"ok": false, "erro": ...}.
+function responder(f)
     try
-        paciente = (idade = numero(p, "idade", "idade"), peso = numero(p, "peso", "peso"),
-                    altura = numero(p, "altura", "altura"), sexo = get(p, "sexo", ""),
-                    pam = numero(p, "pam", "PAM"), fc = numero(p, "fc", "FC"))
-        modo = get(p, "modo", "dose")
-        entrada = modo == "alvo" ? (alvo_ugml = numero(p, "alvo", "concentração-alvo"),) :
-            (dose_mgkg = numero(p, "dose", "dose"),
-             duracao_bolus_s = round(Int, numero(p, "bolus", "tempo de injeção")),
-             manutencao_mgkgh = haskey(p, "manut") && !isempty(strip(p["manut"])) ? numero(p, "manut", "manutenção") : 0.0)
-        r = prever(; paciente..., entrada...)
-        titulo = modo == "alvo" ? "Alvo plasmático de $(p["alvo"]) µg/ml" :
-                 "$(p["dose"]) mg/kg em $(p["bolus"]) s"
-        periodos = [(inicio = x.inicio, fim = x.fim, pior = x.pior, melhor = x.melhor,
-                     pam_min = x.pam_min, pam_max = x.pam_max) for x in r.periodos]
-        return json((ok = true, svg = svg_faixa(r.t, r.faixa; titulo), texto = r.texto, periodos = periodos))
+        return json(f())
     catch e
         msg = e isa ErrorException ? e.msg : "Não foi possível calcular: " * sprint(showerror, e)
         return json((ok = false, erro = msg))
     end
+end
+
+# Tira uma amostra a cada `passo` segundos (a página não precisa dos 1201 pontos).
+amostrar(v; passo = 2) = v[1:passo:end]
+
+"""
+    responder_previsao(p)
+
+Recebe os campos do formulário (Dict) e devolve o texto JSON da previsão: as
+curvas (tempo, faixas da PAM, da FC e da Cp, RPT e VS), o resumo (`metricas`),
+os períodos de risco, a dose total e a farmacocinética e os parâmetros usados;
+ou `{"ok": false, "erro": "mensagem"}`.
+"""
+responder_previsao(p) = responder() do
+    paciente, modo, entrada = ler_formulario(p)
+    r = prever(; paciente..., entrada...)
+    a = amostrar
+    curvas = (t = a(r.t), pam_inf = a(r.faixa.inf), pam_med = a(r.faixa.mediana), pam_sup = a(r.faixa.sup),
+              fc_inf = a(r.fc.inf), fc_med = a(r.fc.mediana), fc_sup = a(r.fc.sup),
+              cp_inf = a(r.cp.inf), cp_med = a(r.cp.mediana), cp_sup = a(r.cp.sup),
+              rpt = a(100 .* (r.rpt .- 1)), vs = a(100 .* (r.vs .- 1)),
+              fcp = a(100 .* (r.fc.mediana ./ paciente.fc .- 1)))
+    periodos = [(inicio = x.inicio, fim = x.fim, pior = x.pior, melhor = x.melhor,
+                 pam_min = x.pam_min, pam_max = x.pam_max) for x in r.periodos]
+    su = ParametrosSu()
+    parametros = (c50_rpt = su.c50_rpt, emax_rpt = su.emax_rpt, γ_rpt = su.γ_rpt, c50_vs = su.c50_vs,
+                  emax_vs = PropofolWK.emax_vs(su, paciente.idade), k_out = su.k_out * 60, fb = su.fb,
+                  ω²_c50 = ω²_SU_C50_RPT, n = 500)
+    (ok = true, modo = modo, dose_mg = sum(r.taxa), curvas = curvas, metricas = r.metricas,
+     periodos = periodos, texto = r.texto, pk = r.pk, parametros = parametros)
+end
+
+"""
+    responder_comparar(p)
+
+Mesmo paciente, várias doses (0,5 a 3,0 mg/kg, de 0,25 em 0,25) ou vários alvos
+(1 a 6 µg/ml, de 0,5 em 0,5), conforme o modo. Para ser rápido, usa 100 versões
+do paciente em cada uma. Devolve, para cada uma, a PAM mínima da mediana e do
+pior caso, a queda, os segundos abaixo de 65 e de 55 e o risco do pior caso.
+"""
+responder_comparar(p) = responder() do
+    paciente, modo, entrada = ler_formulario(p)
+    valores = modo == "alvo" ? collect(1.0:0.5:6.0) : collect(0.5:0.25:3.0)
+    linhas = map(valores) do v
+        e = modo == "alvo" ? (alvo_ugml = v,) : merge(entrada, (dose_mgkg = v,))
+        r = prever(; paciente..., e..., n = 100)
+        m = r.metricas
+        (valor = v, mg = sum(r.taxa), pam_nadir = m.pam_nadir, pam_pior = m.pam_pior, queda_pct = m.queda_pct,
+         s_abaixo_65 = m.s_abaixo_65, s_abaixo_55 = m.s_abaixo_55, risco = m.risco)
+    end
+    (ok = true, modo = modo, linhas = linhas)
 end
 
 # ---------------------------------------------------------------- servidor
@@ -115,6 +163,8 @@ function atender(sock)
         enviar(sock, "200 OK", "text/html", read(PAGINA, String))
     elseif caminho == "/api/prever"
         enviar(sock, "200 OK", "application/json", responder_previsao(ler_parametros(consulta)))
+    elseif caminho == "/api/comparar"
+        enviar(sock, "200 OK", "application/json", responder_comparar(ler_parametros(consulta)))
     else
         enviar(sock, "404 Not Found", "text/plain", "Página não encontrada.")
     end
