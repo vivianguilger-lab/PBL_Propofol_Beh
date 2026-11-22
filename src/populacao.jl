@@ -59,10 +59,15 @@ function simular_populacao(idade, peso, altura, sexo, pam_basal, fc_basal, taxa;
     rng = Xoshiro(semente)
     pk = parametros_eleveld(idade, peso, altura, sexo)
     psu = ParametrosSu()
-    curvas = map(1:n) do _
+      versoes = map(1:n) do _
         pk_versao, psu_versao = sortear_paciente(pk, psu, rng; ω²_pk, ω²_c50)
         cp = simular_pk(pk_versao, taxa)
-        simular_hemodinamica(cp, pam_basal, fc_basal, idade; p = psu_versao).pam
+        (cp = cp, h = simular_hemodinamica(cp, pam_basal, fc_basal, idade; p = psu_versao))
     end
-    return (t = collect(0.0:length(taxa) - 1), curvas = curvas)
+    return (t = collect(0.0:length(taxa) - 1),
+            curvas = [v.h.pam for v in versoes],      # PAM (mmHg)
+            fc = [v.h.fc for v in versoes],           # FC (bpm)
+            cp = [v.cp for v in versoes],             # Cp (µg/ml)
+            rpt = [v.h.rpt_rel for v in versoes],     # RPT (fração do basal)
+            vs = [v.h.vs_rel for v in versoes])       # VS (fração do basal)
 end
