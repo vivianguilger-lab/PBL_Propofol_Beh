@@ -461,11 +461,11 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
         <section class="card"><div class="hd"><span class="idx">03</span><h2>Concentração de propofol</h2><span class="hint">µg/ml · plasma (Eleveld) · move a hemodinâmica</span></div><div class="bd"><div class="chart" id="chCP"></div></div></section>
       </div>
 
-      <!-- Cartão 04: o mesmo paciente com várias doses (ou alvos). Vem de um segundo pedido ao servidor (/api/comparar). -->
+      <!-- Cartão 04: gráfico pressão × dose com as faixas de risco ao fundo (61 doses ou alvos, de 0 até a máxima, paciente típico). Vem de um segundo pedido ao servidor (/api/comparar). -->
       <section class="card">
-        <div class="hd"><span class="idx">04</span><h2 id="cmpTit">Comparar doses</h2><span class="hint">mesmo paciente · clique numa linha para simular</span></div>
+        <div class="hd"><span class="idx">04</span><h2 id="cmpTit">Risco por dose</h2><span class="hint">PAM mínima prevista para cada dose, de 0 até a máxima · clique no gráfico ou numa linha para simular</span></div>
         <div class="bd">
-          <div id="cmpLoad" class="hint loading-dots">Calculando 11 opções</div>
+          <div id="cmpLoad" class="hint loading-dots">Calculando</div>
           <div id="cmpOk" class="hidden">
             <div class="window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div id="janela"></div></div>
             <div class="legend" id="legCmp"></div>
@@ -880,41 +880,59 @@ function renderTudo() {
   if (cmp) renderComparar();
 }
 
-// renderComparar(): preenche o cartão 04 com a resposta de /api/comparar (11 doses ou 11 alvos).
+// renderComparar(): preenche o cartão 04 com a resposta de /api/comparar.
+// Gráfico pressão × dose: para cada dose (ou alvo), a PAM mínima que o paciente típico atinge, desenhada sobre as
+// faixas de risco (verde ≥ 65 mmHg, amarelo 55 a 65, vermelho < 55). Assim se vê de uma vez em que doses o risco muda.
 function renderComparar() {
   const d = cmp, f = ultimo.campos, alvo = d.modo === "alvo";
   const atual = alvo ? +f.alvo : +f.dose, un = alvo ? "µg/ml" : "mg/kg", dec = alvo ? 1 : 2;
-  $("cmpTit").textContent = alvo ? "Comparar concentrações-alvo" : "Comparar doses";
+  $("cmpTit").textContent = alvo ? "Risco por concentração-alvo" : "Risco por dose";
   $("cmpLoad").classList.add("hidden"); $("cmpOk").classList.remove("hidden");
-  // Maior valor (dose ou alvo) em que o pior caso ainda fica em risco baixo (PAM ≥ 65 mmHg).
-  const seguros = d.linhas.filter(o => o.risco === "baixo").map(o => o.valor);
-  const maxSeguro = seguros.length && d.linhas[0].risco === "baixo" ? Math.max(...seguros) : null;
-  $("janela").innerHTML = (maxSeguro != null
-    ? `<b>Até ${fmt(maxSeguro, dec)} ${un}, o pior caso fica em risco baixo</b> (PAM ≥ 65 mmHg em 95% das versões).`
-    : `<b>Em nenhuma opção desta lista o pior caso fica em risco baixo</b> (PAM ≥ 65 mmHg).`) +
-    ` O modelo atual não prevê o BIS, então a ${alvo ? "concentração" : "dose"} mínima para hipnose não é calculada.`;
-  const x = d.linhas.map(o => o.valor), S1 = css("--s1"), CR = css("--crit");
-  legenda($("legCmp"), [{ cor: S1, txt: "PAM mínima (mediana)" }, { cor: CR, txt: "pior caso" },
-    { cor: css("--good"), tipo: "box", txt: "pior caso em risco baixo" },
-    { cor: css("--serious"), tipo: "dash", txt: "65 mmHg" }, { cor: css("--crit"), tipo: "dash", txt: "55 mmHg" }]);
-  const escolher = v => {
-    const vv = alvo ? Math.round(v * 2) / 2 : Math.round(v * 4) / 4;
+  const L = d.linhas, x = L.map(o => o.valor), y = L.map(o => o.pam_min), v = z => `${fmt(z, dec)} ${un}`;
+  // Faixas de dose: doses vizinhas com o mesmo nível de risco viram uma faixa só.
+  const faixas = [];
+  L.forEach(o => {
+    const ult = faixas[faixas.length - 1];
+    if (ult && ult.risco === o.risco) ult.fim = o.valor; else faixas.push({ risco: o.risco, ini: o.valor, fim: o.valor });
+  });
+  $("janela").innerHTML = `<b>Risco conforme a ${alvo ? "concentração-alvo" : "dose"}:</b> ` +
+    faixas.map(fx => `<span class="pill ${RISCO(fx.risco)}"><i></i>${NOME(fx.risco)}</span> ` +
+      (fx.ini === fx.fim ? v(fx.ini) : `${fmt(fx.ini, dec)} a ${v(fx.fim)}`)).join(" &nbsp;·&nbsp; ") +
+    `<br><small style="color:var(--ink-2)">Paciente típico: os valores médios dos modelos para estes dados, sem variação entre pessoas.
+    O modelo atual não prevê o BIS, então a ${alvo ? "concentração" : "dose"} mínima para hipnose não é calculada.</small>`;
+  const S1 = css("--s1");
+  legenda($("legCmp"), [{ cor: S1, txt: "PAM mínima prevista" }, { cor: css("--good"), tipo: "box", txt: "risco baixo" },
+    { cor: css("--warn"), tipo: "box", txt: "moderado" }, { cor: css("--crit"), tipo: "box", txt: "alto" }]);
+  const escolher = z => {
+    const vv = alvo ? Math.round(z * 10) / 10 : Math.round(z * 20) / 20;
     if (alvo) $("alvo").value = $("alvoR").value = vv; else $("dose").value = $("doseR").value = vv;
     atualizaDose(); simular();
   };
-  chart($("chCmp"), { h: 220, xMin: x[0], xMax: x[x.length - 1], xDec: dec, xLabel: `${alvo ? "Alvo (µg/ml)" : "Dose (mg/kg)"} · clique para simular`,
-    xTip: v => `${fmt(v, dec)} ${un}`, onclick: escolher,
-    vbands: maxSeguro != null ? [{ x0: x[0], x1: maxSeguro, color: css("--good"), op: .12 }] : [],
-    series: [{ x, y: d.linhas.map(o => o.pam_nadir), color: S1, label: "mediana", unit: "mmHg", marks: true },
-             { x, y: d.linhas.map(o => o.pam_pior), color: CR, label: "pior caso", unit: "mmHg", marks: true }],
-    points: atual >= x[0] && atual <= x[x.length - 1] ? [{ x: atual, y: ultimo.metricas.pam_nadir, color: css("--ink"), r: 6, label: "atual", dy: -12 }] : [],
-    yLabel: "PAM mínima (mmHg)",
+  // Limites do eixo y (sempre mostrando as faixas de 55 e 65) e linhas verticais onde a faixa de risco muda.
+  const y0 = Math.min(45, Math.floor(Math.min(...y) / 5) * 5 - 3), y1 = Math.max(75, Math.ceil(Math.max(...y) / 5) * 5 + 5);
+  // Onde a faixa de risco muda, a linha vertical fica no ponto exato em que a curva cruza o limiar, por interpolação
+  // entre as duas doses vizinhas. O limiar é 64,5 (ou 54,5) porque a PAM é arredondada para mmHg inteiros, como no monitor.
+  const vl = faixas.slice(1).map(fx => {
+    const i = x.indexOf(fx.ini), lim = fx.risco === "alto" ? 55 : 65, l = lim - 0.5;
+    const xc = y[i - 1] !== y[i] ? x[i - 1] + (y[i - 1] - l) / (y[i - 1] - y[i]) * (x[i] - x[i - 1]) : fx.ini;
+    return { x: Math.min(Math.max(xc, x[i - 1]), x[i]), label: `${lim} mmHg em ${fmt(xc, dec)} ${un}` };
+  });
+  const k = nearest(x, atual);
+  chart($("chCmp"), { h: 300, xMin: x[0], xMax: x[x.length - 1], xDec: dec, yMin: y0, yMax: y1,
+    xLabel: `${alvo ? "Concentração-alvo (µg/ml)" : "Dose do bolus (mg/kg)"} · clique para simular`, xTip: z => v(z), onclick: escolher,
+    hbands: [{ y0: 65, y1, color: css("--good"), op: .13 }, { y0: 55, y1: 65, color: css("--warn"), op: .18 },
+             { y0, y1: 55, color: css("--crit"), op: .13 }],
+    series: [{ x, y, color: S1, label: "PAM mínima", unit: "mmHg", w: 2.5 }],
+    vlines: vl,
+    points: atual >= x[0] && atual <= x[x.length - 1] ? [{ x: x[k], y: y[k], color: css("--ink"), r: 6, label: "atual", dy: -12 }] : [],
+    yLabel: "PAM mínima prevista (mmHg)",
     hlines: [{ y: 65, color: css("--serious"), label: "65" }, { y: 55, color: css("--crit"), label: "55" }] });
-  $("cabCmp").innerHTML = `<th>${alvo ? "Alvo" : "Dose"}</th><th>Total (20 min)</th><th>PAM mínima</th><th>Pior caso</th><th>Queda</th><th>PAM&lt;65</th><th>PAM&lt;55</th><th>Risco</th>`;
+  // Tabela: uma linha a cada 5 valores do gráfico (de 0,25 em 0,25 mg/kg ou de 0,5 em 0,5 µg/ml), com o valor atual destacado.
+  $("cabCmp").innerHTML = `<th>${alvo ? "Alvo" : "Dose"}</th><th>Total (20 min)</th><th>PAM mínima</th><th>Queda</th><th>PAM&lt;65</th><th>PAM&lt;55</th><th>Risco</th>`;
   const tb = $("tabCmp").querySelector("tbody");
-  tb.innerHTML = d.linhas.map(o => `<tr data-v="${o.valor}" class="${Math.abs(o.valor - atual) < 1e-6 ? "sel" : ""}">
-    <td>${fmt(o.valor, dec)} ${un}</td><td>${fmt(o.mg)} mg</td><td>${fmt(o.pam_nadir)} mmHg</td><td>${fmt(o.pam_pior)} mmHg</td>
-    <td>${fmt(o.queda_pct)}%</td><td>${fmt(o.s_abaixo_65)} s</td><td>${fmt(o.s_abaixo_55)} s</td>
+  tb.innerHTML = L.filter((o, i) => i % 5 === 0).map(o => `<tr data-v="${o.valor}" class="${Math.abs(o.valor - atual) < 1e-6 ? "sel" : ""}">
+    <td>${v(o.valor)}</td><td>${fmt(o.mg)} mg</td><td>${fmt(o.pam_min)} mmHg</td><td>${fmt(o.queda_pct)}%</td>
+    <td>${fmt(o.s_abaixo_65)} s</td><td>${fmt(o.s_abaixo_55)} s</td>
     <td><span class="pill ${RISCO(o.risco)}"><i></i>${NOME(o.risco)}</span></td></tr>`).join("");
   tb.querySelectorAll("tr").forEach(tr => tr.onclick = () => { escolher(+tr.dataset.v); window.scrollTo({ top: 0, behavior: "smooth" }); });
 }
