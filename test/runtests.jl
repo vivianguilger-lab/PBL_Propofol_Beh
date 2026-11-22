@@ -223,11 +223,23 @@ end
         cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30")
         @test occursin("Preencha o campo: peso.", corpo)     # erro explicado para o médico
         cab, corpo = pedir(8765, "/api/comparar?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0")
-        @test occursin("\"linhas\":[", corpo)                 # comparação de doses (cartão 04)
-        @test count("\"valor\":", corpo) == 11                # 0,5 a 3,0 mg/kg, de 0,25 em 0,25
+        @test occursin("\"linhas\":[", corpo)                 # gráfico pressão × dose (cartão 04)
+        @test count("\"valor\":", corpo) == 61                # 0 a 3,0 mg/kg, de 0,05 em 0,05
         cab, corpo = pedir(8765, "/outra")
         @test startswith(cab, "HTTP/1.1 404")
     finally
         close(servidor)
     end
+end
+
+@testset "Risco por dose (paciente típico)" begin
+    paciente = (idade = 81, peso = 64, altura = 168, sexo = "M", pam = 107.0, fc = 64.0)
+    r = risco_por_dose([1.0, 2.0, 3.0]; paciente...)
+    @test risco_por_dose([0.0]; paciente...)[1].pam_min ≈ 107.0   # sem propofol, a PAM fica na basal
+    # igual a simular o paciente típico à mão, dose por dose
+    pk = parametros_eleveld(81, 64, 168, "M")
+    manual = minimum(simular_hemodinamica(simular_pk(pk, taxa_bolus(2.0 * 64, 30, 1201)), 107.0, 64.0, 81).pam)
+    @test r[2].pam_min ≈ manual
+    @test r[1].pam_min > r[2].pam_min > r[3].pam_min    # mais dose, PAM mínima mais baixa
+    @test r[2].risco == nivel(round(manual))
 end
