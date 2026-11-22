@@ -136,7 +136,8 @@ end
     faixa = (inf = fill(60.0, 601), mediana = fill(70.0, 601), sup = fill(80.0, 601))
     arquivo = grafico_faixa(joinpath(mktempdir(), "teste.svg"), t, faixa; titulo = "Teste <&>")
     svg = read(arquivo, String)
-    @test startswith(svg, "<svg")
+        @test occursin("\"pam_med\":[", corpo)                # curvas para os gráficos da página
+        @test occursin("\"risco\":", corpo)                   # resumo do cartão de risco
     @test occursin("Tempo após o início do bolus (s)", svg)
     @test occursin("PAM (mmHg)", svg)
     @test occursin("<polygon", svg) && occursin("<polyline", svg)
@@ -221,7 +222,9 @@ end
         @test occursin("\"ok\":true", corpo)                  # vírgula decimal aceita
         cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30")
         @test occursin("Preencha o campo: peso.", corpo)     # erro explicado para o médico
-        cab, corpo = pedir(8765, "/outra")
+        cab, corpo = pedir(8765, "/api/comparar?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0")
+        @test occursin("\"linhas\":[", corpo)                 # comparação de doses (cartão 04)
+        @test count("\"valor\":", corpo) == 11                # 0,5 a 3,0 mg/kg, de 0,25 em 0,25
         @test startswith(cab, "HTTP/1.1 404")
     finally
         close(servidor)
