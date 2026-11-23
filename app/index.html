@@ -18,7 +18,7 @@
 /* Variáveis de cor e de fonte do tema CLARO (padrão). :root é a raiz da página; todo nome que começa com -- é uma variável. */
 /* O resto do CSS usa var(--nome) em vez de repetir códigos de cor: trocar um valor aqui muda a página inteira. */
 /* --bg e --surface: fundos; --ink: texto; --muted: texto discreto; --grid e --axis: linhas de grade e de eixo (os gráficos não usam grade). */
-/* --s1, --s2, --s3: cores das curvas (azul, laranja, verde); --band e --band-pa: faixas sombreadas (ex.: PAS-PAD). */
+/* --s1, --s2, --s3: cores das curvas (azul, laranja, verde); --band e --band-pa: faixas sombreadas (ex.: PAS-PAD); --sono: roxo do sono (BIS). */
 /* --good, --warn, --crit: verde, amarelo e vermelho do risco baixo, moderado e alto; --hero: azul-escuro do cabeçalho. */
 :root {
   color-scheme: light;
@@ -28,6 +28,7 @@
   --border-2: rgba(11,11,11,.16);
   --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781; --grid: #e6e5df; --axis: #c3c2b7;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --band: rgba(42,120,214,.16);
+  --sono: #7b61d1;
   --band-pa: rgba(137,135,129,.15);
   --good: #0ca30c; --good-ink: #006300; --warn: #fab219; --warn-ink: #8a5a00; --serious: #ec835a;
   --crit: #d03b3b; --crit-ink: #a12424; --accent: #2a78d6; --accent-ink: #ffffff;
@@ -45,6 +46,7 @@
     --border-2: rgba(255,255,255,.16);
     --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a; --axis: #45453f;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --band: rgba(57,135,229,.22);
+    --sono: #9a84ec;
     --band-pa: rgba(195,194,183,.10);
     --good-ink: #2fbf2f; --warn-ink: #fab219; --crit-ink: #e66767; --accent: #3987e5;
     --good-bg: rgba(12,163,12,.13); --warn-bg: rgba(250,178,25,.11); --crit-bg: rgba(208,59,59,.15);
@@ -59,6 +61,7 @@
   --border-2: rgba(255,255,255,.16);
   --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a; --axis: #45453f;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --band: rgba(57,135,229,.22);
+  --sono: #9a84ec;
   --band-pa: rgba(195,194,183,.10);
   --good-ink: #2fbf2f; --warn-ink: #fab219; --crit-ink: #e66767; --accent: #3987e5;
   --good-bg: rgba(12,163,12,.13); --warn-bg: rgba(250,178,25,.11); --crit-bg: rgba(208,59,59,.15);
@@ -215,9 +218,8 @@ main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .meter { margin-top: 10px; }
 .meter svg { display: block; width: 100%; overflow: visible; }
 
-/* .tiles: os 5 blocos de números (PAM mínima, tempo abaixo de 65 etc.) em 5 colunas; 3 colunas em telas médias e 2 no celular. */
-.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 1250px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* .tiles: os 6 blocos de números (PAM mínima, tempo abaixo de 65, sono etc.) em 3 colunas; 2 colunas no celular. */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px 13px; box-shadow: var(--shadow); }
 .tile .k { font-size: 11.5px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
@@ -331,7 +333,7 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
       <h2>Dados pré-indução</h2>
       <p>A PAM e a FC do monitor são o ponto de partida das versões do paciente.</p>
     </div>
-    <!-- O formulário tem 3 seções (fieldset): 1 Paciente, 2 Monitor, 3 Protocolo de indução. -->
+    <!-- O formulário tem 4 seções (fieldset): 1 Paciente, 2 Monitor, 3 Protocolo de indução (propofol), 4 Remifentanil. -->
     <form id="form" autocomplete="off">
       <div class="form-bd">
       <!-- Seção 1, Paciente: idade, sexo (dois botões), peso e altura. Entram na farmacocinética de Eleveld. -->
@@ -346,14 +348,14 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
           <label class="f">Altura<div class="inp"><input id="altura" type="number" inputmode="decimal" min="1" step="1" value="160"><span class="u">cm</span></div></label>
         </div>
       </fieldset>
-      <!-- Seção 2, Monitor: PAM e FC pré-indução. São os valores basais do modelo de Su (a PAM e a FC previstas partem deles). -->
+      <!-- Seção 2, Monitor: PAM e FC antes de qualquer fármaco. São os valores basais do modelo de Su (a PAM e a FC previstas partem deles). -->
       <fieldset>
         <legend><span class="n">2</span>Monitor</legend>
         <div class="grid2">
           <label class="f">PAM<div class="inp"><input id="pam" type="number" inputmode="decimal" min="1" value="104"><span class="u">mmHg</span></div></label>
           <label class="f">FC<div class="inp"><input id="fc" type="number" inputmode="decimal" min="1" value="78"><span class="u">bpm</span></div></label>
         </div>
-        <div class="dose-total">PAS, PAD e débito cardíaco não entram no modelo atual (ver docs/decisoes.md).</div>
+        <div class="dose-total">Antes de qualquer fármaco (antes do remifentanil). PAS, PAD e débito cardíaco não entram no modelo atual (ver docs/decisoes.md).</div>
       </fieldset>
       <!-- Seção 3, Protocolo de indução: o médico escolhe a forma de entrada (dose ou concentração-alvo). -->
       <fieldset>
@@ -378,14 +380,29 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
         </div>
         <!-- Modo concentração-alvo: concentração plasmática desejada (como uma bomba de TCI no plasma). -->
         <div id="blocoAlvo" class="hidden">
-          <div class="dose-big"><div class="v" id="alvoBig"></div><div class="t">alvo no <b>plasma</b><br>(bomba de TCI)</div></div>
+          <div class="dose-big"><div class="v" id="alvoBig"></div><div class="t">Alvo no <b>plasma</b><br>(bomba de TCI)</div></div>
           <div class="dose-row">
             <input id="alvoR" type="range" min="1" max="8" step="0.1" value="3" aria-label="Concentração-alvo em µg/ml">
             <div class="inp" style="width:112px"><input id="alvo" type="number" step="0.1" min="0" value="3" aria-label="Concentração-alvo (µg/ml)"><span class="u">µg/ml</span></div>
           </div>
           <div class="range-scale" style="margin-right:124px"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
         </div>
-        <div class="dose-total" style="margin-top:10px">Farmacocinética: Eleveld 2018 · efeito na pressão: Su 2023.</div>
+        <div class="dose-total" style="margin-top:10px">Farmacocinética: Eleveld 2018 · Efeito na pressão: Su 2023.</div>
+      </fieldset>
+      <!-- Seção 4, Remifentanil: infusão contínua (µg/kg/min) e quantos minutos antes do propofol ela começou. 0 = sem remifentanil.
+           Os valores iniciais são as medianas das 21 induções do VitalDB da coorte do PBL_6 (dados/remifentanil_vitaldb.csv). -->
+      <fieldset>
+        <legend><span class="n">4</span>Remifentanil</legend>
+        <div class="dose-big"><div class="v" id="remiBig"></div><div class="t" id="remiTotal"></div></div>
+        <div class="dose-row">
+          <input id="remiR" type="range" min="0" max="0.5" step="0.01" value="0.12" aria-label="Remifentanil em µg/kg/min">
+          <div class="inp" style="width:132px"><input id="remi" type="number" step="0.01" min="0" value="0.12" aria-label="Remifentanil (µg/kg/min)"><span class="u">µg/kg/min</span></div>
+        </div>
+        <div class="range-scale" style="margin-right:144px"><span>0</span><span>0,1</span><span>0,2</span><span>0,3</span><span>0,4</span><span>0,5</span></div>
+        <div class="grid2" style="margin-top:12px">
+          <label class="f">Começa antes do propofol<div class="inp"><input id="remiAntes" type="number" min="0" step="1" value="9"><span class="u">min</span></div></label>
+        </div>
+        <div class="dose-total" style="margin-top:10px">0 = sem remifentanil. Valores iniciais: medianas de 21 induções do VitalDB (0,12 µg/kg/min, começando 9 min antes). Farmacocinética: Minto 1997.</div>
       </fieldset>
       </div>
       <!-- Rodapé do formulário: botão Simular, caixa de erro e botões de exemplo (data-ex 0, 1 e 2). -->
@@ -432,18 +449,19 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
         <div class="meter" id="meter" aria-label="Régua da PAM: basal, mínima da mediana, pior caso e faixas de 55 e 65 mmHg"></div>
       </section>
 
-      <!-- Cinco blocos de números (tiles). -->
+      <!-- Seis blocos de números (tiles), em 3 colunas. -->
       <div class="tiles">
         <div class="tile"><div class="k">PAM basal → mínima</div><div class="v" id="tNadir"></div><div class="s" id="tNadirS"></div></div>
-        <div class="tile"><div class="k">Tempo com PAM &lt; 65</div><div class="v" id="t65"></div><div class="s" id="t65S"></div></div>
         <div class="tile"><div class="k">Queda da PAM</div><div class="v" id="tQueda"></div><div class="s" id="tQuedaS"></div></div>
+        <div class="tile"><div class="k">Sono (BIS &lt; 60)</div><div class="v" id="tSono"></div><div class="s" id="tSonoS"></div></div>
+        <div class="tile"><div class="k">Tempo com PAM &lt; 65</div><div class="v" id="t65"></div><div class="s" id="t65S"></div></div>
         <div class="tile"><div class="k">Tempo com PAM &lt; 55</div><div class="v" id="t55"></div><div class="s" id="t55S"></div></div>
         <div class="tile"><div class="k">Concentração máxima</div><div class="v" id="tCp"></div><div class="s" id="tCpS"></div></div>
       </div>
 
-      <!-- Cartão 01: faixa da PAM ao longo de 20 minutos e a tabela de períodos de risco. -->
+      <!-- Cartão 01 (gráfico principal): PAM no tempo, com as faixas, as zonas de risco e o sono (faixa roxa no alto). -->
       <section class="card">
-        <div class="hd"><span class="idx">01</span><h2>Pressão arterial prevista</h2><span class="hint">20 minutos após o início · passe o mouse para ver os valores</span></div>
+        <div class="hd"><span class="idx">01</span><h2>Pressão arterial e sono</h2><span class="hint">20 minutos após o início · Passe o mouse para ver os valores</span></div>
         <div class="bd">
           <div class="legend" id="legPA"></div>
           <div class="chart" id="chPA"></div>
@@ -451,19 +469,14 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
           <div class="tbl-wrap"><table class="doses" id="tabPer"><thead><tr>
             <th>Período</th><th>PAM prevista</th><th>Pior caso</th><th>Melhor caso</th>
           </tr></thead><tbody></tbody></table></div>
-          <div class="nota">Pior caso: borda de baixo da faixa; melhor caso: borda de cima. Bordas arredondadas para mmHg inteiros, como no monitor.</div>
+          <div class="nota">Pior caso: borda de baixo da faixa de 9 em cada 10 pacientes; melhor caso: borda de cima. Bordas arredondadas para mmHg inteiros, como no monitor.
+            Faixa roxa: quanto mais forte, mais pacientes dormindo (BIS &lt; 60) naquele instante.</div>
         </div>
       </section>
 
-      <!-- Cartões 02 e 03, em duas colunas: FC e concentração plasmática de propofol, também como faixa. -->
-      <div class="grid2c">
-        <section class="card"><div class="hd"><span class="idx">02</span><h2>Frequência cardíaca</h2><span class="hint">bpm · faixa e mediana</span></div><div class="bd"><div class="chart" id="chFC"></div></div></section>
-        <section class="card"><div class="hd"><span class="idx">03</span><h2>Concentração de propofol</h2><span class="hint">µg/ml · plasma (Eleveld) · move a hemodinâmica</span></div><div class="bd"><div class="chart" id="chCP"></div></div></section>
-      </div>
-
-      <!-- Cartão 04: gráfico pressão × dose com as faixas de risco ao fundo (61 doses ou alvos, de 0 até a máxima, paciente típico). Vem de um segundo pedido ao servidor (/api/comparar). -->
+      <!-- Cartão 02: pressão × dose de propofol, com o remifentanil fixo (paciente típico, 61 doses ou alvos), as zonas de risco e a dose em que, em média, o paciente dorme. -->
       <section class="card">
-        <div class="hd"><span class="idx">04</span><h2 id="cmpTit">Risco por dose</h2><span class="hint">PAM mínima prevista para cada dose, de 0 até a máxima · clique no gráfico ou numa linha para simular</span></div>
+        <div class="hd"><span class="idx">02</span><h2 id="cmpTit">Pressão por dose de propofol</h2><span class="hint" id="cmpHint"></span></div>
         <div class="bd">
           <div id="cmpLoad" class="hint loading-dots">Calculando</div>
           <div id="cmpOk" class="hidden">
@@ -475,20 +488,63 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
         </div>
       </section>
 
-      <!-- Cartão 05: os efeitos do propofol no modelo de Su (resistência e volume sistólico; FC pelo feedback), em % do basal. -->
+      <!-- Cartão 03: pressão × dose de remifentanil, com o propofol fixo (paciente típico, 26 taxas de 0 a 0,5 µg/kg/min). -->
       <section class="card">
-        <div class="hd"><span class="idx">05</span><h2>Os efeitos do propofol no modelo</h2><span class="hint">(Su 2023: resistência e volume sistólico; FC pela resposta à queda da PAM)</span></div>
+        <div class="hd"><span class="idx">03</span><h2>Pressão por dose de remifentanil</h2><span class="hint" id="remHint"></span></div>
+        <div class="bd">
+          <div id="remLoad" class="hint loading-dots">Calculando</div>
+          <div id="remOk" class="hidden">
+            <div class="window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div id="remJanela"></div></div>
+            <div class="legend" id="legRem"></div>
+            <div class="chart" id="chRem"></div>
+            <div class="tbl-wrap"><table class="doses" id="tabRem"><thead><tr id="cabRem"></tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cartão 04: resposta à dose. Para cada dose, a % dos mesmos 200 pacientes virtuais que dorme e que tem hipotensão. -->
+      <section class="card">
+        <div class="hd"><span class="idx">04</span><h2 id="chcTit">Resposta à dose</h2><span class="hint" id="chcHint"></span></div>
+        <div class="bd">
+          <div id="chcLoad" class="hint loading-dots">Calculando</div>
+          <div id="chcOk" class="hidden">
+            <div class="window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div id="chcTxt"></div></div>
+            <div class="legend" id="legChc"></div>
+            <div class="chart" id="chChc"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cartão 05: profundidade anestésica (BIS) no tempo, com a faixa-alvo de 40 a 60 e quando, em média, dorme e acorda. -->
+      <section class="card">
+        <div class="hd"><span class="idx">05</span><h2>Profundidade anestésica (BIS)</h2><span class="hint">Eleveld 2018 · Como o monitor mostra, com o atraso dele</span></div>
+        <div class="bd">
+          <div class="legend" id="legBIS"></div>
+          <div class="chart" id="chBIS"></div>
+        </div>
+      </section>
+
+      <!-- Cartões 06 e 07, em duas colunas: FC e concentrações plasmáticas de propofol e de remifentanil, também como faixa. -->
+      <div class="grid2c">
+        <section class="card"><div class="hd"><span class="idx">06</span><h2>Frequência cardíaca</h2><span class="hint">Faixa e mediana</span></div><div class="bd"><div class="chart" id="chFC"></div></div></section>
+        <section class="card"><div class="hd"><span class="idx">07</span><h2>Concentrações no plasma</h2><span class="hint">Propofol (Eleveld) e remifentanil (Minto) · Movem a hemodinâmica</span></div>
+          <div class="bd"><div class="chart" id="chCP"></div><div class="chart" id="chCR" style="margin-top:10px"></div></div></section>
+      </div>
+
+      <!-- Cartão 08: os efeitos do propofol e do remifentanil no modelo de Su (resistência e volume sistólico; FC pelo feedback), em % do basal. -->
+      <section class="card">
+        <div class="hd"><span class="idx">08</span><h2>Os efeitos dos fármacos no modelo</h2><span class="hint">(Su 2023: propofol e remifentanil na resistência, no volume sistólico e na FC)</span></div>
         <div class="bd">
           <div class="mech" id="mech"></div>
           <div class="legend" id="legMec"></div>
           <div class="chart" id="chMec"></div>
-          <div class="nota">Medianas das 500 versões do paciente.</div>
+          <div class="nota">Medianas dos 500 pacientes virtuais.</div>
         </div>
       </section>
 
-      <!-- Cartão 06: parâmetros usados (farmacocinética do paciente típico, efeito de Su e variabilidade). -->
+      <!-- Cartão 09: parâmetros usados (farmacocinética do paciente típico, efeito de Su, BIS de Eleveld e variabilidade). -->
       <section class="card">
-        <div class="hd"><span class="idx">06</span><h2>Paciente virtual</h2><span class="hint">parâmetros do paciente típico e variabilidade usada nas versões</span></div>
+        <div class="hd"><span class="idx">09</span><h2>Paciente virtual</h2><span class="hint">Parâmetros do paciente típico e variabilidade usada nos pacientes virtuais</span></div>
         <div class="bd"><dl class="params" id="params"></dl></div>
       </section>
 
@@ -496,9 +552,9 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
       <section class="card">
         <div class="bd foot" style="padding-top:18px">
           <p class="disclaimer"><b>Uso educacional e de pesquisa.</b> Farmacocinética do propofol de Eleveld (2018) e efeito
-            hemodinâmico de Su (2023), só com propofol, com a variabilidade entre pessoas publicada nos artigos (500 versões
-            do paciente; a faixa contém 90% delas). Os parâmetros do efeito foram estimados em voluntários saudáveis e ainda
-            não foram validados em pacientes (ver docs/decisoes.md); o modelo não considera opioides, gases, laringoscopia,
+            hemodinâmico e BIS de Su (2023) e Eleveld (2018), farmacocinética do remifentanil de Minto (1997), com a
+            variabilidade entre pessoas publicada nos artigos (500 pacientes virtuais; a faixa clara contém 9 em cada 10 deles e a escura, metade). Os parâmetros do efeito foram estimados em voluntários saudáveis e ainda
+            não foram validados em pacientes (ver docs/decisoes.md); o modelo não considera outros opioides, gases, laringoscopia,
             fluidos ou vasopressores. A decisão clínica é sempre do anestesiologista.</p>
           <div class="actions">
             <button class="icon-btn" id="print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z"/></svg>Imprimir / salvar PDF</button>
@@ -557,14 +613,19 @@ const setModo = m => document.querySelector(`[data-modo="${m}"]`).click();
 function atualizaDose() {
   const d = +$("dose").value, p = +$("peso").value, a = +$("alvo").value;
   $("doseBig").innerHTML = d > 0 ? `${fmt(d, 2)}<small>mg/kg</small>` : "—";
-  $("doseTotal").innerHTML = p > 0 && d > 0 ? `bolus <b>${fmt(d * p)} mg</b><br>para ${fmt(p, 1)} kg` : "";
+  $("doseTotal").innerHTML = p > 0 && d > 0 ? `Bolus de <b>${fmt(d * p)} mg</b><br>para ${fmt(p, 1)} kg` : "";
   $("alvoBig").innerHTML = a > 0 ? `${fmt(a, 1)}<small>µg/ml</small>` : "—";
+  const r = +$("remi").value;
+  $("remiBig").innerHTML = r > 0 ? `${fmt(r, 2)}<small>µg/kg/min</small>` : "Sem";
+  $("remiTotal").innerHTML = p > 0 && r > 0 ? `<b>${fmt(r * p, 1)} µg/min</b><br>para ${fmt(p, 1)} kg` : "Só propofol";
 }
 // Régua deslizante e caixa numérica sincronizadas (dose e alvo); mudar o peso recalcula o total em mg.
 $("doseR").oninput = () => { $("dose").value = $("doseR").value; atualizaDose(); };
 $("dose").oninput = () => { $("doseR").value = $("dose").value; atualizaDose(); };
 $("alvoR").oninput = () => { $("alvo").value = $("alvoR").value; atualizaDose(); };
 $("alvo").oninput = () => { $("alvoR").value = $("alvo").value; atualizaDose(); };
+$("remiR").oninput = () => { $("remi").value = $("remiR").value; atualizaDose(); };
+$("remi").oninput = () => { $("remiR").value = $("remi").value; atualizaDose(); };
 $("peso").oninput = atualizaDose;
 atualizaDose();
 
@@ -589,6 +650,7 @@ function coletar() {
   for (const k in p) if (p[k] === "") throw new Error("Preencha todos os campos do paciente e do monitor.");
   if (modo === "dose") Object.assign(p, { dose: v("dose"), bolus: v("dur"), manut: v("manut") || "0" });
   else p.alvo = v("alvo");
+  Object.assign(p, { remi: v("remi") || "0", remi_antes: v("remiAntes") || "0" });
   return p;
 }
 // pedir(endereço, campos): envia ao servidor e devolve a resposta; se ela trouxer erro, vira um erro do JavaScript.
@@ -600,10 +662,11 @@ async function pedir(url, campos) {
 }
 
 // ---------------------------------------------------------------- simulação
-// ultimo: última previsão; cmp: última comparação; pedido: contador para ignorar respostas de pedidos antigos.
-let ultimo = null, cmp = null, pedido = 0;
+// ultimo: última previsão; cmp: última pressão × dose de propofol; rem: de remifentanil; chc: última resposta à dose;
+// pedido: contador para ignorar respostas de pedidos antigos.
+let ultimo = null, cmp = null, rem = null, chc = null, pedido = 0;
 $("form").onsubmit = e => { e.preventDefault(); simular(); };
-// simular(): 1) pede /api/prever e desenha tudo; 2) depois pede /api/comparar (11 opções, demora mais) e preenche o cartão 04.
+// simular(): 1) pede /api/prever e desenha tudo; 2) /api/comparar (cartão 02); 3) /api/remi (cartão 03); 4) /api/chances (cartão 04, o mais demorado).
 async function simular() {
   const meu = ++pedido;
   $("err").style.display = "none";
@@ -614,14 +677,20 @@ async function simular() {
   try {
     const r = await pedir("/api/prever", campos);
     if (meu !== pedido) return;
-    ultimo = r; cmp = null; ultimo.campos = campos;
+    ultimo = r; cmp = null; rem = null; chc = null; ultimo.campos = campos;
     $("vazio").classList.add("hidden"); $("res").classList.remove("hidden");
     $("cmpLoad").classList.remove("hidden"); $("cmpOk").classList.add("hidden");
+    $("chcLoad").classList.remove("hidden"); $("chcOk").classList.add("hidden");
+    $("remLoad").classList.remove("hidden"); $("remOk").classList.add("hidden");
     renderTudo();
   } catch (e) { if (meu === pedido) mostraErro(e.message.includes("fetch") ? "Sem resposta do servidor. A janela do Julia ainda está aberta?" : e.message); }
   finally { if (meu === pedido) { $("btn").disabled = false; $("btnTxt").textContent = "Simular"; } }
   if (meu !== pedido || !ultimo) return;
   try { const c = await pedir("/api/comparar", campos); if (meu === pedido) { cmp = c; renderComparar(); } } catch (e) {}
+  if (meu !== pedido) return;
+  try { const c = await pedir("/api/remi", campos); if (meu === pedido) { rem = c; renderRemi(); } } catch (e) {}
+  if (meu !== pedido) return;
+  try { const c = await pedir("/api/chances", campos); if (meu === pedido) { chc = c; renderChances(); if (cmp) renderComparar(); } } catch (e) {}
 }
 function mostraErro(m) { $("err").textContent = m; $("err").style.display = "block"; }
 
@@ -651,6 +720,9 @@ function el(tag, attrs, parent) {
 function chart(box, cfg) {
   box.innerHTML = "";
   const W = Math.max(box.clientWidth, 280), H = cfg.h || 220, m = { l: 42, r: 14, t: cfg.yLabel ? 22 : 12, b: cfg.xLabel ? 36 : 30 };
+  // Faixa do sono (cfg.ribbon): uma tira no alto do gráfico; o gráfico começa logo abaixo dela.
+  const rb = cfg.ribbon, rbY = m.t, rbH = 16;
+  if (rb) m.t += rbH + 10;
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": cfg.aria || "" }, box);
   const all = [];
   (cfg.series || []).forEach(s => s.y.forEach(v => v != null && all.push(v)));
@@ -674,16 +746,12 @@ function chart(box, cfg) {
   }
   el("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: css("--axis") }, g);
   if (cfg.yLabel) el("text", { x: 4, y: 10, "text-anchor": "start", "font-size": 11, fill: css("--ink-2") }, g).textContent = cfg.yLabel;
-  (cfg.vlines || []).forEach(v => {
-    el("line", { x1: X(v.x), x2: X(v.x), y1: m.t, y2: H - m.b, stroke: css("--axis"), "stroke-width": 1, "stroke-dasharray": "2 3" }, g);
-    if (v.label) el("text", { x: X(v.x) + 5, y: m.t + 10, "font-size": 11, fill: css("--muted") }, g).textContent = v.label;
-  });
   if (cfg.xLabel) el("text", { x: W - m.r, y: H - 2, "text-anchor": "end", "font-size": 11, fill: css("--ink-2") }, g).textContent = cfg.xLabel;
   (cfg.vbands || []).forEach(v => {
-    el("rect", { x: X(v.x0), y: m.t, width: Math.max(X(v.x1) - X(v.x0), 0), height: H - m.t - m.b, fill: v.color, opacity: v.op || .12 }, g);
+    el("rect", { x: X(v.x0), y: m.t, width: Math.max(X(v.x1) - X(v.x0), 0), height: H - m.t - m.b, fill: v.color, opacity: v.op ?? .12 }, g);
   });
   (cfg.hbands || []).forEach(v => {
-    el("rect", { x: m.l, y: Y(v.y1), width: W - m.l - m.r, height: Y(v.y0) - Y(v.y1), fill: v.color, opacity: v.op || .12 }, g);
+    el("rect", { x: m.l, y: Y(v.y1), width: W - m.l - m.r, height: Y(v.y0) - Y(v.y1), fill: v.color, opacity: v.op ?? .12 }, g);
   });
   // Faixa entre duas curvas: percorre a borda de cima e volta pela de baixo, formando uma área fechada.
   (cfg.bands || []).forEach(b => {
@@ -691,6 +759,26 @@ function chart(box, cfg) {
     b.x.forEach((x, i) => { if (b.hi[i] != null) d += (d ? "L" : "M") + X(x) + "," + Y(b.hi[i]); });
     for (let i = b.x.length - 1; i >= 0; i--) if (b.lo[i] != null) d2 += "L" + X(b.x[i]) + "," + Y(b.lo[i]);
     el("path", { d: d + d2 + "Z", fill: b.color, stroke: "none" }, g);
+  });
+  // Faixa do sono: cada trecho fica mais forte quanto maior a % de pacientes dormindo (0 a 100).
+  if (rb) {
+    el("rect", { x: m.l, y: rbY, width: W - m.l - m.r, height: rbH, rx: 4, fill: css("--surface-2"), stroke: css("--border") }, g);
+    const gr = el("g", {}, g);
+    rb.x.slice(1).forEach((x, i) => {
+      const v = (rb.v[i] + rb.v[i + 1]) / 2;
+      if (v > 0) el("rect", { x: X(rb.x[i]), y: rbY, width: X(x) - X(rb.x[i]) + 0.6, height: rbH, fill: rb.color, opacity: .9 * v / 100 }, gr);
+    });
+    el("text", { x: m.l - 6, y: rbY + rbH - 4, "text-anchor": "end", "font-size": 11, fill: css("--ink-2") }, g).textContent = rb.label;
+  }
+  // Linhas verticais (pontilhadas): v.color, v.row (1ª ou 2ª linha de rótulos) e v.anchor ("start" ou "end").
+  (cfg.vlines || []).forEach(v => {
+    const cor = v.color || css("--axis");
+    el("line", { x1: X(v.x), x2: X(v.x), y1: rb && v.color ? rbY : m.t, y2: H - m.b, stroke: cor, "stroke-width": v.color ? 1.6 : 1, "stroke-dasharray": v.color ? "3 4" : "2 3" }, g);
+    if (v.label) {
+      const fim = v.anchor === "end" || (v.anchor == null && X(v.x) > W * 0.72);
+      el("text", { x: X(v.x) + (fim ? -6 : 6), y: m.t + 12 + 15 * (v.row || 0), "text-anchor": fim ? "end" : "start", "font-size": 11.5,
+        "font-weight": v.color ? 600 : 400, fill: v.color || css("--muted"), stroke: css("--surface"), "stroke-width": 4, "paint-order": "stroke" }, g).textContent = v.label;
+    }
   });
   (cfg.hlines || []).forEach(h => {
     el("line", { x1: m.l, x2: W - m.r, y1: Y(h.y), y2: Y(h.y), stroke: h.color, "stroke-width": 1.4, "stroke-dasharray": "5 4" }, g);
@@ -732,6 +820,7 @@ function chart(box, cfg) {
       const i = nearest(b.x, xv); if (b.lo[i] == null) return;
       linhas.push(`<div class="row"><span class="sw box" style="background:${b.color}"></span>${b.label}: <b>${fmt(b.lo[i], b.dec ?? 0)}–${fmt(b.hi[i], b.dec ?? 0)}</b></div>`);
     });
+    if (rb) { const i = nearest(rb.x, xv); linhas.push(`<div class="row"><span class="sw box" style="background:${rb.color}"></span>${rb.tip}: <b>${fmt(rb.v[i])}%</b></div>`); }
     if (xx == null) return;
     cross.setAttribute("x1", X(xx)); cross.setAttribute("x2", X(xx)); cross.setAttribute("visibility", "visible");
     tip.innerHTML = `<div style="color:var(--ink-2);margin-bottom:4px">${cfg.xTip ? cfg.xTip(xx) : fmt(xx, 1)}</div>` + linhas.join("");
@@ -758,6 +847,14 @@ const ICONES = {
   ALTO: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 6v8M12 18h.01"/></svg>',
 };
 const segTip = x => `${fmt(x)} s após o início`;
+// alfa("#2a78d6", .3): a mesma cor, transparente (para as faixas).
+const alfa = (cor, a) => cor.startsWith("#") ? `rgba(${parseInt(cor.slice(1, 3), 16)},${parseInt(cor.slice(3, 5), 16)},${parseInt(cor.slice(5, 7), 16)},${a})` : cor;
+// sonoMedio(dados): a dose (ou alvo) em que metade dos pacientes dorme, por interpolação entre os dois valores vizinhos.
+function sonoMedio(L) {
+  for (let i = 1; i < L.length; i++) if (L[i].dorme >= 50 && L[i - 1].dorme < 50)
+    return L[i - 1].valor + (50 - L[i - 1].dorme) / (L[i].dorme - L[i - 1].dorme) * (L[i].valor - L[i - 1].valor);
+  return null;
+}
 const EIXO_T = "Tempo após o início da infusão (s)";
 
 // régua da PAM: faixas < 55, 55–65 e ≥ 65 mmHg com a PAM basal (círculo vazado), a mínima da mediana (círculo cheio)
@@ -792,10 +889,10 @@ function meter(box, mt) {
     if (anchor === "end" && x - w < 0) { t.setAttribute("text-anchor", "start"); t.setAttribute("x", 0); }
     if (anchor === "start" && x + w > W) { t.setAttribute("text-anchor", "end"); t.setAttribute("x", W); }
   };
-  lab(X(mt.pam_pior) + 6, `pior caso <tspan font-weight="600" fill="${css("--crit-ink")}">${fmt(mt.pam_pior)}</tspan>`, "end");
-  lab(X(mt.pam_nadir) - 6, `mediana <tspan font-weight="600" fill="${css("--ink")}">${fmt(mt.pam_nadir)}</tspan>`, "start");
+  lab(X(mt.pam_pior) + 6, `Pior caso <tspan font-weight="600" fill="${css("--crit-ink")}">${fmt(mt.pam_pior)}</tspan>`, "end");
+  lab(X(mt.pam_nadir) - 6, `Mediana <tspan font-weight="600" fill="${css("--ink")}">${fmt(mt.pam_nadir)}</tspan>`, "start");
   el("text", { x: X(mt.pam_basal), y: yb + hb + 30, "text-anchor": "middle", "font-size": 12, fill: css("--ink-2") }, svg)
-    .innerHTML = `basal <tspan font-weight="600" fill="${css("--ink")}">${fmt(mt.pam_basal)}</tspan>`;
+    .innerHTML = `Basal <tspan font-weight="600" fill="${css("--ink")}">${fmt(mt.pam_basal)}</tspan>`;
 }
 
 // renderTudo(): preenche os resultados com a última previsão (ultimo). Também é chamada ao trocar o tema e ao redimensionar.
@@ -807,62 +904,95 @@ function renderTudo() {
   $("risk").className = "card risk " + R;
   $("riskIc").innerHTML = ICONES[R];
   $("riskLvl").textContent = NOME(mt.risco);
-  const entrada = r.modo === "alvo" ? `alvo plasmático de <b>${fmt(+f.alvo, 1)} µg/ml</b>`
-    : `<b>${fmt(+f.dose, 2)} mg/kg (${fmt(+f.dose * +f.peso)} mg)</b> em ${f.bolus} s`;
+  const comRemi = r.remi.remi_ugkgmin > 0;
+  const entrada = (r.modo === "alvo" ? `alvo plasmático de <b>${fmt(+f.alvo, 1)} µg/ml</b>`
+    : `<b>${fmt(+f.dose, 2)} mg/kg (${fmt(+f.dose * +f.peso)} mg)</b> em ${f.bolus} s`) +
+    (comRemi ? ` e remifentanil a <b>${fmt(r.remi.remi_ugkgmin, 2)} µg/kg/min</b> (desde ${fmt(r.remi.remi_antes_s / 60)} min antes)` : " e sem remifentanil");
+  const so = r.sono, dorme = so.t_hipnose != null;
+  const txtSono = dorme
+    ? `Em média, dorme (BIS &lt; 60) aos <b>${fmt(so.t_hipnose)} s</b>${so.t_acorda != null ? ` e acorda aos <b>${fmt(so.t_acorda)} s</b>` : " e continua dormindo até o fim"}; no pico, ${fmt(so.pct_max)}% dos pacientes estão dormindo.`
+    : `Em média, <b>não chega a dormir</b> (BIS mínimo ${fmt(so.bis_min)}); no pico, só ${fmt(so.pct_max)}% dos pacientes dormem.`;
+  const txtInicio = comRemi ? ` No início do propofol, o remifentanil já levou a PAM a ${fmt(c.pam_med[0])} mmHg.` : "";
   $("riskTxt").innerHTML = `Com ${entrada}, a PAM prevista (mediana) cai de <b>${fmt(mt.pam_basal)}</b> para
     <b>${fmt(mt.pam_nadir)} mmHg</b> em ${fmt(mt.t_nadir)} s (−${fmt(mt.queda_pct)}%). No pior caso, chega a
-    <b>${fmt(mt.pam_pior)} mmHg</b> em ${fmt(mt.t_pior)} s.
-    <small>Pior caso: a borda de baixo da faixa (5% das versões do paciente ficam abaixo dela). ${R === "ALTO"
+    <b>${fmt(mt.pam_pior)} mmHg</b> em ${fmt(mt.t_pior)} s.${txtInicio} ${txtSono}
+    <small>Pior caso: a borda de baixo da faixa (5% dos pacientes virtuais ficam abaixo dela). ${R === "ALTO"
       ? "Ela passa abaixo de 55 mmHg." : R === "MODERADO" ? "Ela fica entre 55 e 65 mmHg." : "Ela fica em 65 mmHg ou mais."}</small>`;
   meter($("meter"), mt);
   // blocos
   $("tNadir").innerHTML = `${fmt(mt.pam_basal)} → ${fmt(mt.pam_nadir)} <small>mmHg</small>`;
-  $("tNadirS").textContent = `mediana, em ${fmt(mt.t_nadir)} s · pior caso ${fmt(mt.pam_pior)}`;
-  $("t65").innerHTML = `${fmt(mt.s_abaixo_65)} <small>s</small>`;
-  $("t65S").textContent = `mediana · pior caso ${fmt(mt.s_abaixo_65_pior)} s`;
+  $("tNadirS").textContent = `Mediana, em ${fmt(mt.t_nadir)} s · Pior caso ${fmt(mt.pam_pior)}`;
   $("tQueda").innerHTML = `${fmt(mt.queda_pct)}<small>%</small>`;
-  $("tQuedaS").textContent = `da PAM basal (mediana), em ${fmt(mt.t_nadir)} s`;
+  $("tQuedaS").textContent = `Da PAM basal (mediana), em ${fmt(mt.t_nadir)} s`;
+  $("tSono").innerHTML = !dorme ? "Não dorme" : so.t_acorda != null ? `${fmt(so.t_hipnose)} → ${fmt(so.t_acorda)} <small>s</small>` : `Aos ${fmt(so.t_hipnose)} <small>s</small>`;
+  $("tSonoS").textContent = (!dorme ? "Em média" : so.t_acorda != null ? "Em média dorme → acorda" : "Em média dorme e segue dormindo até o fim") +
+    ` · No pico, ${fmt(so.pct_max)}% dormem`;
+  $("t65").innerHTML = `${fmt(mt.s_abaixo_65)} <small>s</small>`;
+  $("t65S").textContent = `Mediana · Pior caso ${fmt(mt.s_abaixo_65_pior)} s`;
   $("t55").innerHTML = `${fmt(mt.s_abaixo_55)} <small>s</small>`;
-  $("t55S").textContent = `mediana · pior caso ${fmt(mt.s_abaixo_55_pior)} s`;
+  $("t55S").textContent = `Mediana · Pior caso ${fmt(mt.s_abaixo_55_pior)} s`;
   $("tCp").innerHTML = `${fmt(mt.cp_max, 1)} <small>µg/ml</small>`;
-  $("tCpS").textContent = `no plasma (mediana), em ${fmt(mt.t_cp_max)} s`;
+  $("tCpS").textContent = `No plasma (mediana), em ${fmt(mt.t_cp_max)} s`;
 
-  // 01 PA: faixa (90% das versões), mediana, limiares de 65 e 55 mmHg, início em 0 s e a PAM mínima da mediana.
-  const S1 = css("--s1"), S2 = css("--s2"), S3 = css("--s3"), BAND = css("--band");
-  legenda($("legPA"), [{ cor: S1, txt: "PAM prevista (mediana)" }, { cor: BAND, tipo: "box", txt: "faixa (90% das versões)" },
-    { cor: css("--serious"), tipo: "dash", txt: "65 mmHg" }, { cor: css("--crit"), tipo: "dash", txt: "55 mmHg" }]);
-  chart($("chPA"), { h: 300, xMin: 0, xMax: xmax, xLabel: EIXO_T, xTip: segTip, xStep: 120,
-    yMin: Math.min(40, ...c.pam_inf) - 2, aria: "Faixa da pressão arterial prevista",
-    bands: [{ x: t, lo: c.pam_inf, hi: c.pam_sup, color: BAND, label: "faixa" }],
+  // 01 gráfico principal: zonas de risco ao fundo, faixa de 9 em cada 10 pacientes (clara), metade (escura), mediana,
+  // limiares de 65 e 55 mmHg, a faixa do sono no alto e as linhas pontilhadas de quando, em média, dorme e acorda.
+  const S1 = css("--s1"), S2 = css("--s2"), S3 = css("--s3"), BAND = css("--band"), SONO = css("--sono");
+  const linhasSono = dorme ? [{ x: so.t_hipnose, color: SONO, label: `Em média dorme aos ${fmt(so.t_hipnose)} s`, row: 0 }]
+    .concat(so.t_acorda != null ? [{ x: so.t_acorda, color: SONO, label: `Em média acorda aos ${fmt(so.t_acorda)} s`, row: 1 }] : []) : [];
+  legenda($("legPA"), [{ cor: S1, txt: "PAM prevista (mediana)" }, { cor: alfa(S1, .34), tipo: "box", txt: "Metade dos pacientes" },
+    { cor: alfa(S1, .14), tipo: "box", txt: "9 em cada 10 pacientes" }, { cor: SONO, tipo: "box", txt: "Dormindo (BIS < 60)" },
+    { cor: SONO, tipo: "dash", txt: "Em média dorme / acorda" }]);
+  const yMinPA = Math.min(40, Math.floor(Math.min(...c.pam_inf) / 5) * 5 - 2), yMaxPA = Math.max(...c.pam_sup) + 4;
+  chart($("chPA"), { h: 360, xMin: 0, xMax: xmax, xLabel: EIXO_T, xTip: segTip, xStep: 120,
+    yMin: yMinPA, yMax: yMaxPA, aria: "Faixa da pressão arterial prevista e sono",
+    hbands: [{ y0: 65, y1: yMaxPA, color: css("--good"), op: .06 }, { y0: 55, y1: 65, color: css("--warn"), op: .13 },
+             { y0: yMinPA, y1: 55, color: css("--crit"), op: .08 }],
+    bands: [{ x: t, lo: c.pam_inf, hi: c.pam_sup, color: alfa(S1, .14), label: "9 em cada 10" },
+            { x: t, lo: c.pam_q1, hi: c.pam_q3, color: alfa(S1, .28), label: "Metade" }],
     series: [{ x: t, y: c.pam_med, color: S1, label: "PAM (mediana)", unit: "mmHg", w: 2.5 }],
     hlines: [{ y: 65, color: css("--serious"), label: "65" }, { y: 55, color: css("--crit"), label: "55" }],
-    vlines: [{ x: 0, label: "início" }], yLabel: "Pressão arterial média (mmHg)",
-    points: [{ x: mt.t_nadir, y: mt.pam_nadir, color: S1, label: `mínima ${fmt(mt.pam_nadir)} mmHg · ${fmt(mt.t_nadir)} s`, dy: 26 }] });
+    ribbon: { x: t, v: c.dormindo, color: SONO, label: "Sono", tip: "Dormindo" },
+    vlines: linhasSono, yLabel: "Pressão arterial média (mmHg)",
+    points: [{ x: mt.t_nadir, y: mt.pam_nadir, color: S1, label: `Mínima ${fmt(mt.pam_nadir)} mmHg · ${fmt(mt.t_nadir)} s`, dy: mt.t_nadir > 0.85 * xmax ? -14 : 26 }] });
   // Tabela de períodos de risco: um período por linha, com o pior e o melhor caso em etiquetas coloridas.
   const pill = n => `<span class="pill ${RISCO(n)}"><i></i>${NOME(n)}</span>`;
   $("tabPer").querySelector("tbody").innerHTML = r.periodos.map(p => `<tr>
     <td>${fmt(p.inicio)} a ${fmt(p.fim)} s</td><td>${fmt(p.pam_min)} a ${fmt(p.pam_max)} mmHg</td>
     <td>${pill(p.pior)}</td><td>${pill(p.melhor)}</td></tr>`).join("");
-  // 02 FC e 03 Cp: faixa e mediana.
+  // 04 BIS: faixa-alvo 40–60, faixas dos pacientes (roxo), mediana e as mesmas linhas de quando, em média, dorme e acorda.
+  legenda($("legBIS"), [{ cor: SONO, txt: "BIS (mediana)" }, { cor: alfa(SONO, .32), tipo: "box", txt: "Metade dos pacientes" },
+    { cor: alfa(SONO, .14), tipo: "box", txt: "9 em cada 10 pacientes" }, { cor: css("--muted"), tipo: "box", txt: "Faixa-alvo 40–60" },
+    { cor: SONO, tipo: "dash", txt: "Em média dorme / acorda" }]);
+  chart($("chBIS"), { h: 280, xMin: 0, xMax: xmax, xStep: 120, yMin: 0, yMax: 100, yLabel: "BIS (0–100)", xLabel: EIXO_T, xTip: segTip,
+    hbands: [{ y0: 40, y1: 60, color: css("--muted"), op: .14 }], hlines: [{ y: 60, color: css("--ink-2"), label: "60" }],
+    bands: [{ x: t, lo: c.bis_inf, hi: c.bis_sup, color: alfa(SONO, .14), label: "9 em cada 10" },
+            { x: t, lo: c.bis_q1, hi: c.bis_q3, color: alfa(SONO, .30), label: "Metade" }],
+    vlines: linhasSono,
+    series: [{ x: t, y: c.bis_med, color: SONO, label: "BIS (mediana)", w: 2.5 }] });
+  // 05 FC e 06 Cp: faixa e mediana.
   chart($("chFC"), { xMin: 0, xMax: xmax, xTip: segTip, xStep: 120, xLabel: EIXO_T, yLabel: "Frequência cardíaca (bpm)", vlines: [{ x: 0 }],
-    bands: [{ x: t, lo: c.fc_inf, hi: c.fc_sup, color: BAND, label: "faixa" }],
+    bands: [{ x: t, lo: c.fc_inf, hi: c.fc_sup, color: BAND, label: "Faixa" }],
     series: [{ x: t, y: c.fc_med, color: S1, label: "FC (mediana)", unit: "bpm" }] });
-  chart($("chCP"), { xMin: 0, xMax: xmax, xTip: segTip, xStep: 120, xLabel: EIXO_T, yLabel: "Concentração plasmática (µg/ml)", yMin: 0, yDec: 0, vlines: [{ x: 0 }],
-    bands: [{ x: t, lo: c.cp_inf, hi: c.cp_sup, color: BAND, label: "faixa", dec: 1 }],
-    series: [{ x: t, y: c.cp_med, color: S1, label: "Cp (mediana)", unit: "µg/ml", dec: 1 }] });
-  // 05 mecanismos: variação (%) de RPT, VS e FC no momento da PAM mínima da mediana, e as curvas no tempo.
+  chart($("chCP"), { xMin: 0, xMax: xmax, xTip: segTip, xStep: 120, xLabel: EIXO_T, yLabel: "Propofol no plasma (µg/ml)", yMin: 0, yDec: 0, vlines: [{ x: 0 }],
+    bands: [{ x: t, lo: c.cp_inf, hi: c.cp_sup, color: BAND, label: "Faixa", dec: 1 }],
+    series: [{ x: t, y: c.cp_med, color: S1, label: "Propofol (mediana)", unit: "µg/ml", dec: 1 }] });
+  chart($("chCR"), { xMin: 0, xMax: xmax, xTip: segTip, xStep: 120, xLabel: EIXO_T, yLabel: "Remifentanil no plasma (ng/ml)", yMin: 0, yDec: 0,
+    yMax: Math.max(1, ...c.cr_sup) * 1.08, vlines: [{ x: 0 }],
+    bands: [{ x: t, lo: c.cr_inf, hi: c.cr_sup, color: alfa(S2, .18), label: "Faixa", dec: 1 }],
+    series: [{ x: t, y: c.cr_med, color: S2, label: "Remifentanil (mediana)", unit: "ng/ml", dec: 1 }] });
+  // 07 mecanismos: variação (%) de RPT, VS e FC no momento da PAM mínima da mediana, e as curvas no tempo.
   $("mech").innerHTML = [
-    ["Vasodilatação", "resistência periférica total", mt.rpt_nadir_pct, S1],
-    ["Depressão miocárdica / pré-carga", "volume sistólico", mt.vs_nadir_pct, S2],
-    ["Frequência cardíaca", "resposta à queda da PAM", mt.fc_nadir_pct, S3]].map(([tt, d, p, cor]) =>
+    ["Vasodilatação", "Resistência periférica total", mt.rpt_nadir_pct, S1],
+    ["Depressão miocárdica / pré-carga", "Volume sistólico", mt.vs_nadir_pct, S2],
+    ["Frequência cardíaca", "Resposta à queda da PAM", mt.fc_nadir_pct, S3]].map(([tt, d, p, cor]) =>
     `<div><div class="k"><span class="sw" style="background:${cor}"></span>${tt}</div><div class="v">${p > 0 ? "+" : ""}${fmt(p)}%</div><div class="d">${d}, no momento da PAM mínima</div></div>`).join("");
-  legenda($("legMec"), [{ cor: S1, txt: "resistência periférica" }, { cor: S2, txt: "volume sistólico" }, { cor: S3, txt: "frequência cardíaca" }]);
+  legenda($("legMec"), [{ cor: S1, txt: "Resistência periférica" }, { cor: S2, txt: "Volume sistólico" }, { cor: S3, txt: "Frequência cardíaca" }]);
   chart($("chMec"), { xMin: 0, xMax: xmax, xTip: segTip, xStep: 120, xLabel: EIXO_T, yLabel: "Variação em relação ao basal (%)", vlines: [{ x: 0 }],
     hlines: [{ y: 0, color: css("--axis") }],
-    series: [{ x: t, y: c.rpt, color: S1, label: "resistência", unit: "%" },
-             { x: t, y: c.vs, color: S2, label: "volume sistólico", unit: "%" },
+    series: [{ x: t, y: c.rpt, color: S1, label: "Resistência", unit: "%" },
+             { x: t, y: c.vs, color: S2, label: "Volume sistólico", unit: "%" },
              { x: t, y: c.fcp, color: S3, label: "FC", unit: "%" }] });
-  // 06 paciente virtual: farmacocinética do paciente típico, parâmetros do efeito e variabilidade.
+  // 08 paciente virtual: farmacocinética do paciente típico, parâmetros do efeito, do BIS e variabilidade.
   const imc = +f.peso / (+f.altura / 100) ** 2;
   const P = [["PAM / FC basais (monitor)", `${fmt(mt.pam_basal)} mmHg / ${fmt(+f.fc)} bpm`],
     ["IMC", `${fmt(imc, 1)} kg/m²`],
@@ -873,68 +1003,153 @@ function renderTudo() {
     ["Su: C50 do volume sistólico", `${fmt(pr.c50_vs, 2)} µg/ml`],
     ["Su: efeito máximo no VS (idade)", `${fmt(100 * pr.emax_vs, 1)}%`],
     ["Su: renovação (k_out) / feedback", `${fmt(pr.k_out, 3)} /min / ${fmt(pr.fb, 3)}`],
-    ["Variabilidade (ω²) do C50 da resistência", fmt(pr["ω²_c50"], 2)],
-    ["Versões do paciente", `${fmt(pr.n)} · faixa de 5% a 95%`],
-    ["Dose total em 20 min", `${fmt(r.dose_mg)} mg`]];
+    ["Minto (remi): V1 / V2 / V3", `${fmt(r.pk_remi.V1, 2)} / ${fmt(r.pk_remi.V2, 2)} / ${fmt(r.pk_remi.V3, 2)} L`],
+    ["Minto (remi): CL / Q2 / Q3", `${fmt(r.pk_remi.CL, 2)} / ${fmt(r.pk_remi.Q2, 2)} / ${fmt(r.pk_remi.Q3, 3)} L/min`],
+    ["Su (remi): C50 / efeito máximo na resistência", `${fmt(pr.c50_remi_rpt, 2)} ng/ml / ${fmt(100 * pr.emax_remi_rpt)}%`],
+    ["Su (remi): efeito na FC / no VS", `${fmt(pr.sl_remi_fc, 4)} / ${fmt(pr.sl_remi_vs, 4)} por ng/ml`],
+    ["Su: interações na resistência / VS / FC", `${fmt(pr.int_rpt, 2)} / ${fmt(pr.int_vs, 3)} / ${fmt(pr.int_fc, 3)}`],
+    ["Eleveld (BIS): Ce50 para a idade", `${fmt(so.ce50, 2)} µg/ml`],
+    ["Eleveld (BIS): ke0 / atraso do monitor", `${fmt(so.ke0, 3)} /min / ${fmt(so.atraso)} s`],
+    ["Variabilidade (ω²): C50 da resistência", fmt(pr["ω²_c50"], 2)],
+    ["Variabilidade (ω²): Ce50 / ke0 do BIS", `${fmt(so["ω²_ce50"], 2)} / ${fmt(so["ω²_ke0"], 2)}`],
+    ["Pacientes virtuais", `${fmt(pr.n)} · Faixas de 5% a 95% e de 25% a 75%`],
+    ["Variabilidade: efeito máximo do remi na resistência", `${fmt(pr["ω²_emax_remi"], 3)} (aditiva)`],
+    ["Dose total em 20 min", `${fmt(r.dose_mg)} mg de propofol` + (r.remi_ug > 0 ? ` · ${fmt(r.remi_ug)} µg de remifentanil` : "")]];
   $("params").innerHTML = P.map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join("");
   if (cmp) renderComparar();
+  if (chc) renderChances();
+  if (rem) renderRemi();
 }
 
-// renderComparar(): preenche o cartão 04 com a resposta de /api/comparar.
-// Gráfico pressão × dose: para cada dose (ou alvo), a PAM mínima que o paciente típico atinge, desenhada sobre as
-// faixas de risco (verde ≥ 65 mmHg, amarelo 55 a 65, vermelho < 55). Assim se vê de uma vez em que doses o risco muda.
-function renderComparar() {
-  const d = cmp, f = ultimo.campos, alvo = d.modo === "alvo";
-  const atual = alvo ? +f.alvo : +f.dose, un = alvo ? "µg/ml" : "mg/kg", dec = alvo ? 1 : 2;
-  $("cmpTit").textContent = alvo ? "Risco por concentração-alvo" : "Risco por dose";
-  $("cmpLoad").classList.add("hidden"); $("cmpOk").classList.remove("hidden");
-  const L = d.linhas, x = L.map(o => o.valor), y = L.map(o => o.pam_min), v = z => `${fmt(z, dec)} ${un}`;
-  // Faixas de dose: doses vizinhas com o mesmo nível de risco viram uma faixa só.
+// pressaoPorValor(o): desenha um cartão de pressão × dose (paciente típico). Para cada valor (dose, alvo ou taxa de
+// remifentanil), a PAM mínima, sobre as faixas de risco (verde ≥ 65 mmHg, amarelo 55 a 65, vermelho < 55), com linhas
+// verticais onde o risco muda. o: { L (linhas do servidor), atual, un, dec, nome, eixo, ids, extraV (linhas a mais),
+// totalUn (unidade do total), escolher (clique) }.
+function pressaoPorValor(o) {
+  const L = o.L, x = L.map(z => z.valor), y = L.map(z => z.pam_min), v = z => `${fmt(z, o.dec)} ${o.un}`;
+  // Faixas: valores vizinhos com o mesmo nível de risco viram uma faixa só.
   const faixas = [];
-  L.forEach(o => {
+  L.forEach(z => {
     const ult = faixas[faixas.length - 1];
-    if (ult && ult.risco === o.risco) ult.fim = o.valor; else faixas.push({ risco: o.risco, ini: o.valor, fim: o.valor });
+    if (ult && ult.risco === z.risco) ult.fim = z.valor; else faixas.push({ risco: z.risco, ini: z.valor, fim: z.valor });
   });
-  $("janela").innerHTML = `<b>Risco conforme a ${alvo ? "concentração-alvo" : "dose"}:</b> ` +
+  $(o.ids.janela).innerHTML = `<b>Risco conforme ${o.nome}:</b> ` +
     faixas.map(fx => `<span class="pill ${RISCO(fx.risco)}"><i></i>${NOME(fx.risco)}</span> ` +
-      (fx.ini === fx.fim ? v(fx.ini) : `${fmt(fx.ini, dec)} a ${v(fx.fim)}`)).join(" &nbsp;·&nbsp; ") +
-    `<br><small style="color:var(--ink-2)">Paciente típico: os valores médios dos modelos para estes dados, sem variação entre pessoas.
-    O modelo atual não prevê o BIS, então a ${alvo ? "concentração" : "dose"} mínima para hipnose não é calculada.</small>`;
+      (fx.ini === fx.fim ? v(fx.ini) : `${fmt(fx.ini, o.dec)} a ${v(fx.fim)}`)).join(" &nbsp;·&nbsp; ") +
+    `<br><small style="color:var(--ink-2)">Paciente típico: os valores médios dos modelos para estes dados, sem variação entre pessoas. ${o.nota || ""}</small>`;
   const S1 = css("--s1");
-  legenda($("legCmp"), [{ cor: S1, txt: "PAM mínima prevista" }, { cor: css("--good"), tipo: "box", txt: "risco baixo" },
-    { cor: css("--warn"), tipo: "box", txt: "moderado" }, { cor: css("--crit"), tipo: "box", txt: "alto" }]);
-  const escolher = z => {
-    const vv = alvo ? Math.round(z * 10) / 10 : Math.round(z * 20) / 20;
-    if (alvo) $("alvo").value = $("alvoR").value = vv; else $("dose").value = $("doseR").value = vv;
-    atualizaDose(); simular();
-  };
-  // Limites do eixo y (sempre mostrando as faixas de 55 e 65) e linhas verticais onde a faixa de risco muda.
+  legenda($(o.ids.leg), [{ cor: S1, txt: "PAM mínima prevista" }, { cor: css("--good"), tipo: "box", txt: "Risco baixo" },
+    { cor: css("--warn"), tipo: "box", txt: "Moderado" }, { cor: css("--crit"), tipo: "box", txt: "Alto" }].concat(o.legExtra || []));
+  // Limites do eixo y (sempre mostrando as faixas de 55 e 65).
   const y0 = Math.min(45, Math.floor(Math.min(...y) / 5) * 5 - 3), y1 = Math.max(75, Math.ceil(Math.max(...y) / 5) * 5 + 5);
   // Onde a faixa de risco muda, a linha vertical fica no ponto exato em que a curva cruza o limiar, por interpolação
-  // entre as duas doses vizinhas. O limiar é 64,5 (ou 54,5) porque a PAM é arredondada para mmHg inteiros, como no monitor.
+  // entre os dois valores vizinhos. O limiar é 64,5 (ou 54,5) porque a PAM é arredondada para mmHg inteiros, como no monitor.
   const vl = faixas.slice(1).map(fx => {
-    const i = x.indexOf(fx.ini), lim = fx.risco === "alto" ? 55 : 65, l = lim - 0.5;
+    const i = x.indexOf(fx.ini), lim = fx.risco === "alto" ? 55 : fx.risco === "moderado" && faixas.find(q => q.risco === "alto" && q.fim < fx.ini) ? 55 : 65, l = lim - 0.5;
     const xc = y[i - 1] !== y[i] ? x[i - 1] + (y[i - 1] - l) / (y[i - 1] - y[i]) * (x[i] - x[i - 1]) : fx.ini;
-    return { x: Math.min(Math.max(xc, x[i - 1]), x[i]), label: `${lim} mmHg em ${fmt(xc, dec)} ${un}` };
+    return { x: Math.min(Math.max(xc, x[i - 1]), x[i]), label: `${lim} mmHg em ${fmt(xc, o.dec)} ${o.un}` };
   });
-  const k = nearest(x, atual);
-  chart($("chCmp"), { h: 300, xMin: x[0], xMax: x[x.length - 1], xDec: dec, yMin: y0, yMax: y1,
-    xLabel: `${alvo ? "Concentração-alvo (µg/ml)" : "Dose do bolus (mg/kg)"} · clique para simular`, xTip: z => v(z), onclick: escolher,
+  const k = nearest(x, o.atual);
+  chart($(o.ids.chart), { h: 300, xMin: x[0], xMax: x[x.length - 1], xDec: o.dec, yMin: y0, yMax: y1,
+    xLabel: `${o.eixo} · Clique para simular`, xTip: z => v(z), onclick: o.escolher,
     hbands: [{ y0: 65, y1, color: css("--good"), op: .13 }, { y0: 55, y1: 65, color: css("--warn"), op: .18 },
              { y0, y1: 55, color: css("--crit"), op: .13 }],
     series: [{ x, y, color: S1, label: "PAM mínima", unit: "mmHg", w: 2.5 }],
-    vlines: vl,
-    points: atual >= x[0] && atual <= x[x.length - 1] ? [{ x: x[k], y: y[k], color: css("--ink"), r: 6, label: "atual", dy: -12 }] : [],
+    vlines: vl.concat(o.extraV || []),
+    points: o.atual >= x[0] && o.atual <= x[x.length - 1] ? [{ x: x[k], y: y[k], color: css("--ink"), r: 6, label: "Atual", dy: -12 }] : [],
     yLabel: "PAM mínima prevista (mmHg)",
     hlines: [{ y: 65, color: css("--serious"), label: "65" }, { y: 55, color: css("--crit"), label: "55" }] });
-  // Tabela: uma linha a cada 5 valores do gráfico (de 0,25 em 0,25 mg/kg ou de 0,5 em 0,5 µg/ml), com o valor atual destacado.
-  $("cabCmp").innerHTML = `<th>${alvo ? "Alvo" : "Dose"}</th><th>Total (20 min)</th><th>PAM mínima</th><th>Queda</th><th>PAM&lt;65</th><th>PAM&lt;55</th><th>Risco</th>`;
-  const tb = $("tabCmp").querySelector("tbody");
-  tb.innerHTML = L.filter((o, i) => i % 5 === 0).map(o => `<tr data-v="${o.valor}" class="${Math.abs(o.valor - atual) < 1e-6 ? "sel" : ""}">
-    <td>${v(o.valor)}</td><td>${fmt(o.mg)} mg</td><td>${fmt(o.pam_min)} mmHg</td><td>${fmt(o.queda_pct)}%</td>
-    <td>${fmt(o.s_abaixo_65)} s</td><td>${fmt(o.s_abaixo_55)} s</td>
-    <td><span class="pill ${RISCO(o.risco)}"><i></i>${NOME(o.risco)}</span></td></tr>`).join("");
-  tb.querySelectorAll("tr").forEach(tr => tr.onclick = () => { escolher(+tr.dataset.v); window.scrollTo({ top: 0, behavior: "smooth" }); });
+  // Tabela: uma linha a cada `o.cada` valores do gráfico, com o valor atual destacado.
+  $(o.ids.cab).innerHTML = `<th>${o.col}</th><th>Total</th><th>PAM mínima</th><th>Queda</th><th>PAM&lt;65</th><th>PAM&lt;55</th><th>BIS mínimo</th><th>Risco</th>`;
+  const tb = $(o.ids.tab).querySelector("tbody");
+  tb.innerHTML = L.filter((z, i) => i % o.cada === 0).map(z => `<tr data-v="${z.valor}" class="${Math.abs(z.valor - o.atual) < 1e-6 ? "sel" : ""}">
+    <td>${v(z.valor)}</td><td>${fmt(z.total)} ${o.totalUn}</td><td>${fmt(z.pam_min)} mmHg</td><td>${fmt(z.queda_pct)}%</td>
+    <td>${fmt(z.s_abaixo_65)} s</td><td>${fmt(z.s_abaixo_55)} s</td><td>${fmt(z.bis_min)}</td>
+    <td><span class="pill ${RISCO(z.risco)}"><i></i>${NOME(z.risco)}</span></td></tr>`).join("");
+  tb.querySelectorAll("tr").forEach(tr => tr.onclick = () => { o.escolher(+tr.dataset.v); window.scrollTo({ top: 0, behavior: "smooth" }); });
+}
+
+// renderComparar(): cartão 02, pressão × dose de PROPOFOL com o remifentanil fixo (/api/comparar). Também marca a dose em que,
+// em média, o paciente dorme (vem do cartão 04, quando ele fica pronto).
+function renderComparar() {
+  const d = cmp, f = ultimo.campos, alvo = d.modo === "alvo", un = alvo ? "µg/ml" : "mg/kg";
+  const sm = chc ? sonoMedio(chc.linhas) : null, SONO = css("--sono");
+  $("cmpTit").textContent = alvo ? "Pressão por concentração-alvo de propofol" : "Pressão por dose de propofol";
+  $("cmpHint").textContent = textoRemi() + " · " + protocolo(alvo) + " · PAM mínima de 0 até a " + (alvo ? "concentração" : "dose") + " máxima";
+  $("cmpLoad").classList.add("hidden"); $("cmpOk").classList.remove("hidden");
+  pressaoPorValor({ L: d.linhas, atual: alvo ? +f.alvo : +f.dose, un, dec: alvo ? 1 : 2, col: alvo ? "Alvo" : "Dose", cada: 5, totalUn: "mg",
+    nome: alvo ? "a concentração-alvo de propofol" : "a dose de propofol", eixo: alvo ? "Concentração-alvo de propofol (µg/ml)" : "Dose do bolus de propofol (mg/kg)",
+    ids: { janela: "janela", leg: "legCmp", chart: "chCmp", cab: "cabCmp", tab: "tabCmp" }, escolher: z => escolherValor(z, alvo),
+    nota: `${textoRemi()}. ` + (sm != null ? `Em média, o paciente dorme (BIS &lt; 60) a partir de <b>${fmt(sm, 1)} ${un}</b> (metade dos pacientes virtuais).` : chc ? "" : "Calculando a dose em que, em média, o paciente dorme…"),
+    legExtra: [{ cor: SONO, tipo: "dash", txt: "Em média dorme a partir daqui" }],
+    extraV: sm != null ? [{ x: sm, color: SONO, label: `Em média dorme a partir de ${fmt(sm, 1)} ${un}`, row: 1 }] : [] });
+}
+
+// renderRemi(): cartão 03, pressão × dose de REMIFENTANIL com o propofol fixo (/api/remi), no mesmo desenho do cartão 02.
+// No modelo de Eleveld, o remifentanil não entra no BIS; ele só muda a farmacocinética do propofol (por isso o BIS
+// mínimo muda de 0 para qualquer taxa acima de 0 e depois fica igual).
+function renderRemi() {
+  const d = rem, f = ultimo.campos, alvo = d.modo === "alvo";
+  $("remHint").textContent = "Propofol fixo: " + (alvo ? `alvo de ${fmt(+f.alvo, 1)} µg/ml` : `${fmt(+f.dose, 2)} mg/kg em ${f.bolus} s`) +
+    ` · Remifentanil desde ${fmt(+f.remi_antes)} min antes · PAM mínima de 0 a 0,5 µg/kg/min`;
+  $("remLoad").classList.add("hidden"); $("remOk").classList.remove("hidden");
+  pressaoPorValor({ L: d.linhas, atual: +f.remi, un: "µg/kg/min", dec: 2, col: "Remifentanil", cada: 5, totalUn: "µg",
+    nome: "a taxa de remifentanil", eixo: "Remifentanil (µg/kg/min)",
+    ids: { janela: "remJanela", leg: "legRem", chart: "chRem", cab: "cabRem", tab: "tabRem" },
+    escolher: z => { $("remi").value = $("remiR").value = Math.round(z * 100) / 100; atualizaDose(); simular(); },
+    nota: "No modelo de BIS de Eleveld, o remifentanil não muda o BIS diretamente: só a farmacocinética do propofol." });
+}
+
+// textoRemi(): o remifentanil do formulário, em texto curto.
+function textoRemi() {
+  const f = ultimo.campos;
+  return +f.remi > 0 ? `Remifentanil fixo em ${fmt(+f.remi, 2)} µg/kg/min` : "Sem remifentanil";
+}
+
+// protocolo(alvo): o que fica fixo do propofol nos cartões 02 e 04 (tempo de injeção e manutenção, ou TCI).
+function protocolo(alvo) {
+  const f = ultimo.campos;
+  if (alvo) return "Alvo plasmático mantido por 20 min";
+  return `Bolus em ${f.bolus} s · ` + (+f.manut > 0 ? `Manutenção de ${fmt(+f.manut)} µg/kg/min` : "Sem manutenção");
+}
+
+// escolherValor(z): coloca a dose (ou o alvo) clicada no formulário e simula de novo.
+function escolherValor(z, alvo) {
+  const vv = alvo ? Math.round(z * 10) / 10 : Math.round(z * 20) / 20;
+  if (alvo) $("alvo").value = $("alvoR").value = vv; else $("dose").value = $("doseR").value = vv;
+  atualizaDose(); simular();
+}
+
+// renderChances(): cartão 04, resposta à dose (/api/chances). Para cada dose, a % dos mesmos 200 pacientes virtuais que
+// dorme (roxo), que tem PAM < 65 (laranja) e < 55 mmHg (vermelho, tracejado) e que dorme sem PAM < 65 (azul). O fundo
+// fica mais azul onde mais pacientes dormem sem hipotensão; a linha roxa pontilhada marca onde, em média, o paciente dorme.
+function renderChances() {
+  const d = chc, alvo = d.modo === "alvo", un = alvo ? "µg/ml" : "mg/kg", dec = 1, v = z => `${fmt(z, dec)} ${un}`;
+  const L = d.linhas, X = L.map(o => o.valor), dorme = L.map(o => o.dorme), h65 = L.map(o => o.h65), h55 = L.map(o => o.h55), ok = L.map(o => o.ok);
+  $("chcTit").textContent = alvo ? "Resposta à concentração-alvo" : "Resposta à dose";
+  $("chcHint").textContent = textoRemi() + " · " + protocolo(alvo) + " · Os mesmos 200 pacientes virtuais em cada " + (alvo ? "alvo" : "dose") + " · Clique para simular";
+  $("chcLoad").classList.add("hidden"); $("chcOk").classList.remove("hidden");
+  const AZ = css("--s1"), SONO = css("--sono"), LAR = css("--serious"), VER = css("--crit");
+  const i = ok.indexOf(Math.max(...ok)), sm = sonoMedio(L);
+  const h50 = (() => { for (let j = 1; j < L.length; j++) if (h65[j] >= 50 && h65[j - 1] < 50) return X[j - 1] + (50 - h65[j - 1]) / (h65[j] - h65[j - 1]) * (X[j] - X[j - 1]); return null; })();
+  $("chcTxt").innerHTML = `<b>${alvo ? "Alvo" : "Dose"} com mais chance de sucesso: ${v(X[i])}.</b> Nela, ${fmt(dorme[i])}% dos pacientes dormem,
+    ${fmt(h65[i])}% têm PAM abaixo de 65 mmHg e ${fmt(ok[i])}% dormem sem hipotensão.<br>
+    <small style="color:var(--ink-2)">${sm != null ? `Em média (metade dos pacientes), dorme a partir de <b>${v(sm)}</b>` : `Nem com ${v(X[X.length - 1])} metade dos pacientes dorme`};
+    ${h50 != null ? `metade tem PAM abaixo de 65 mmHg a partir de ${v(h50)}` : `nem com ${v(X[X.length - 1])} metade tem PAM abaixo de 65 mmHg`}.</small>`;
+  legenda($("legChc"), [{ cor: SONO, txt: "Dormem (BIS < 60)" }, { cor: LAR, txt: "PAM < 65 mmHg" }, { cor: VER, tipo: "dash", txt: "PAM < 55 mmHg" },
+    { cor: AZ, txt: "Dormem sem hipotensão" }, { cor: alfa(AZ, .4), tipo: "box", txt: "Quanto mais azul, mais pacientes dormem sem hipotensão" },
+    { cor: SONO, tipo: "dash", txt: "Em média dorme a partir daqui" }]);
+  const atual = alvo ? +ultimo.campos.alvo : +ultimo.campos.dose;
+  chart($("chChc"), { h: 330, xMin: X[0], xMax: X[X.length - 1], xDec: 1, yMin: 0, yMax: 100, yLabel: "Pacientes (%)",
+    xLabel: `${alvo ? "Concentração-alvo (µg/ml)" : "Dose do bolus (mg/kg)"} · Clique para simular`, xTip: v, onclick: z => escolherValor(z, alvo),
+    vbands: X.slice(1).map((x, j) => ({ x0: X[j], x1: x, color: AZ, op: .5 * (ok[j] + ok[j + 1]) / 200 })),
+    vlines: (sm != null ? [{ x: sm, color: SONO, label: `Em média dorme a partir de ${v(sm)}`, row: 0 }] : [])
+      .concat(atual >= X[0] && atual <= X[X.length - 1] ? [{ x: atual, label: `Atual: ${v(atual)}`, row: 1 }] : []),
+    series: [{ x: X, y: dorme, color: SONO, label: "Dormem", unit: "%", w: 3 },
+             { x: X, y: h65, color: LAR, label: "PAM < 65", unit: "%", w: 3 },
+             { x: X, y: h55, color: VER, label: "PAM < 55", unit: "%", w: 2, dash: "5 4" },
+             { x: X, y: ok, color: AZ, label: "Dormem sem hipotensão", unit: "%", w: 2 }],
+    points: [{ x: X[i], y: ok[i], color: AZ, label: `Melhor ${alvo ? "alvo" : "dose"}: ${v(X[i])}`, dy: -14 }] });
 }
 
 // ---------------------------------------------------------------- ações
@@ -942,8 +1157,8 @@ function renderComparar() {
 $("print").onclick = () => window.print();
 $("csv").onclick = () => {
   const c = ultimo.curvas;
-  let txt = "t_s;PAM_p5;PAM_mediana;PAM_p95;FC_mediana;Cp_mediana\n";
-  c.t.forEach((t, i) => txt += [t, c.pam_inf[i], c.pam_med[i], c.pam_sup[i], c.fc_med[i], c.cp_med[i]].map(x => String(x).replace(".", ",")).join(";") + "\n");
+  let txt = "t_s;PAM_p5;PAM_p25;PAM_mediana;PAM_p75;PAM_p95;FC_mediana;Cp_propofol_mediana;Cp_remifentanil_mediana;BIS_mediana;Dormindo_pct\n";
+  c.t.forEach((t, i) => txt += [t, c.pam_inf[i], c.pam_q1[i], c.pam_med[i], c.pam_q3[i], c.pam_sup[i], c.fc_med[i], c.cp_med[i], c.cr_med[i], c.bis_med[i], c.dormindo[i]].map(x => String(x).replace(".", ",")).join(";") + "\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([txt], { type: "text/csv" })); a.download = "faixa_prevista.csv"; a.click();
 };

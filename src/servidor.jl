@@ -12,13 +12,16 @@
 # Endereços que o servidor entende:
 #   /                  → a página (app/index.html)
 #   /api/prever?...    → a previsão, em JSON (formato de dados que a página lê)
-#   /api/comparar?...  → o mesmo paciente com várias doses ou alvos (cartão 06)
+#   /api/comparar?...  → pressão × dose de propofol (remifentanil fixo): paciente típico, 61 doses ou alvos
+#   /api/remi?...      → pressão × dose de remifentanil (propofol fixo): paciente típico, 26 taxas
+#   /api/chances?...   → resposta à dose: % de pacientes que dormem e que têm hipotensão
 # =============================================================================
 
 # ---------------------------------------------------------------- JSON
 # Transforma valores do Julia em texto JSON. Só os tipos que a resposta usa.
 json(x::AbstractString) = "\"" * escape_json(x) * "\""
 json(x::Bool) = x ? "true" : "false"
+json(::Nothing) = "null"
 json(x::Symbol) = json(string(x))
 json(x::Integer) = string(x)
 json(x::Real) = isfinite(x) ? string(round(x; digits = 2)) : "null"
@@ -65,8 +68,9 @@ function numero(p, chave, nome)
     return v
 end
 
-# Lê os dados do paciente e a entrada (dose ou alvo) dos campos do formulário.
+# Lê os dados do paciente, a entrada do propofol (dose ou alvo) e o remifentanil dos campos do formulário.
 # A manutenção chega em µg/kg/min (como na bomba) e vai para o modelo em mg/kg/h (× 60 ÷ 1000).
+# O remifentanil chega em µg/kg/min e o início dele em minutos antes do propofol (vai em segundos).
 function ler_formulario(p)
     paciente = (idade = numero(p, "idade", "idade"), peso = numero(p, "peso", "peso"),
                 altura = numero(p, "altura", "altura"), sexo = get(p, "sexo", ""),
@@ -77,7 +81,9 @@ function ler_formulario(p)
         (dose_mgkg = numero(p, "dose", "dose"),
          duracao_bolus_s = round(Int, numero(p, "bolus", "tempo de injeção")),
          manutencao_mgkgh = manut * 60 / 1000)
-    return paciente, modo, entrada
+    remi = haskey(p, "remi") && !isempty(strip(p["remi"])) ? numero(p, "remi", "remifentanil") : 0.0
+    antes = haskey(p, "remi_antes") && !isempty(strip(p["remi_antes"])) ? numero(p, "remi_antes", "início do remifentanil") : 9.0
+    return paciente, modo, entrada, (remi_ugkgmin = remi, remi_antes_s = round(Int, antes * 60))
 end
 
 # Resposta JSON com tratamento de erro: se `f()` der erro, devolve {"ok": false, "erro": ...}.
@@ -102,38 +108,77 @@ os períodos de risco, a dose total e a farmacocinética e os parâmetros usados
 ou `{"ok": false, "erro": "mensagem"}`.
 """
 responder_previsao(p) = responder() do
-    paciente, modo, entrada = ler_formulario(p)
-    r = prever(; paciente..., entrada...)
+    paciente, modo, entrada, remi = ler_formulario(p)
+    r = prever(; paciente..., entrada..., remi...)
     a = amostrar
     curvas = (t = a(r.t), pam_inf = a(r.faixa.inf), pam_med = a(r.faixa.mediana), pam_sup = a(r.faixa.sup),
               fc_inf = a(r.fc.inf), fc_med = a(r.fc.mediana), fc_sup = a(r.fc.sup),
               cp_inf = a(r.cp.inf), cp_med = a(r.cp.mediana), cp_sup = a(r.cp.sup),
               rpt = a(100 .* (r.rpt .- 1)), vs = a(100 .* (r.vs .- 1)),
-              fcp = a(100 .* (r.fc.mediana ./ paciente.fc .- 1)))
+              fcp = a(100 .* (r.fc.mediana ./ paciente.fc .- 1)),
+              pam_q1 = a(r.metade.inf), pam_q3 = a(r.metade.sup),
+              bis_inf = a(r.bis.inf), bis_q1 = a(r.metade_bis.inf), bis_med = a(r.bis.mediana),
+              bis_q3 = a(r.metade_bis.sup), bis_sup = a(r.bis.sup), dormindo = a(r.dormindo),
+              cr_inf = a(r.cr.inf), cr_med = a(r.cr.mediana), cr_sup = a(r.cr.sup))
     periodos = [(inicio = x.inicio, fim = x.fim, pior = x.pior, melhor = x.melhor,
                  pam_min = x.pam_min, pam_max = x.pam_max) for x in r.periodos]
     su = ParametrosSu()
     parametros = (c50_rpt = su.c50_rpt, emax_rpt = su.emax_rpt, γ_rpt = su.γ_rpt, c50_vs = su.c50_vs,
                   emax_vs = PropofolWK.emax_vs(su, paciente.idade), k_out = su.k_out * 60, fb = su.fb,
-                  ω²_c50 = ω²_SU_C50_RPT, n = 500)
-    (ok = true, modo = modo, dose_mg = sum(r.taxa), curvas = curvas, metricas = r.metricas,
-     periodos = periodos, texto = r.texto, pk = r.pk, parametros = parametros)
+                  ω²_c50 = ω²_SU_C50_RPT, n = 500, c50_remi_rpt = su.c50_remi_rpt, emax_remi_rpt = su.emax_remi_rpt,
+                  sl_remi_fc = su.sl_remi_fc, sl_remi_vs = su.sl_remi_vs, int_rpt = su.int_rpt, int_vs = su.int_vs,
+                  int_fc = su.int_fc, ω²_emax_remi = ω²_SU_EMAX_REMI_RPT)
+    bis = ParametrosBIS()
+    sono = (r.sono..., ce50 = PropofolWK.ce50_bis(bis, paciente.idade), ke0 = PropofolWK.ke0_bis(bis, paciente.peso) * 60,
+            atraso = PropofolWK.atraso_bis(bis, paciente.idade), ω²_ce50 = ω²_ELEVELD_BIS.ce50, ω²_ke0 = ω²_ELEVELD_BIS.ke0)
+    (ok = true, modo = modo, dose_mg = sum(r.taxa), remi_ug = r.taxa_remi === nothing ? 0.0 : sum(r.taxa_remi),
+     remi = remi, curvas = curvas, metricas = r.metricas, sono = sono,
+     periodos = periodos, texto = r.texto, pk = r.pk, pk_remi = r.pk_remi, parametros = parametros)
 end
 
 """
     responder_comparar(p)
 
-Gráfico pressão × dose: o mesmo paciente (paciente típico) com 61 doses, de 0 a
-3,0 mg/kg de 0,05 em 0,05, ou 61 concentrações-alvo, de 0 a 6 µg/ml de 0,1 em
-0,1, conforme o modo. Para cada uma: PAM mínima, queda, segundos abaixo de 65 e
-de 55 e o nível de risco (ver `risco_por_dose`).
+Gráfico pressão × dose de propofol, com o remifentanil fixo no valor do formulário:
+o mesmo paciente (paciente típico) com 61 doses, de 0 a 3,0 mg/kg de 0,05 em 0,05,
+ou 61 concentrações-alvo, de 0 a 6 µg/ml de 0,1 em 0,1, conforme o modo. Para cada uma: PAM mínima, queda, segundos abaixo de 65 e
+de 55, o nível de risco e o BIS mínimo (ver `risco_por_dose`).
 """
 responder_comparar(p) = responder() do
-    paciente, modo, entrada = ler_formulario(p)
+    paciente, modo, entrada, remi = ler_formulario(p)
     valores = modo == "alvo" ? collect(0.0:0.1:6.0) : collect(0.0:0.05:3.0)
     extra = modo == "alvo" ? (;) : (duracao_bolus_s = entrada.duracao_bolus_s, manutencao_mgkgh = entrada.manutencao_mgkgh)
-    linhas = risco_por_dose(valores; paciente..., modo, extra...)
+    linhas = risco_por_dose(valores; paciente..., modo, extra..., remi...)
     (ok = true, modo = modo, linhas = linhas)
+end
+
+"""
+    responder_remi(p)
+
+Gráfico pressão × dose de remifentanil, com o propofol fixo no valor do formulário
+(dose ou alvo): o paciente típico com 26 taxas de remifentanil, de 0 a 0,5
+µg/kg/min de 0,02 em 0,02 (a maior taxa média nas 21 induções do VitalDB foi
+0,46). Mesmas colunas de `responder_comparar` (ver `risco_por_remi`).
+"""
+responder_remi(p) = responder() do
+    paciente, modo, entrada, remi = ler_formulario(p)
+    linhas = risco_por_remi(collect(0.0:0.02:0.5); paciente..., entrada..., remi_antes_s = remi.remi_antes_s)
+    (ok = true, modo = modo, linhas = linhas)
+end
+
+"""
+    responder_chances(p)
+
+Gráfico de resposta à dose: os mesmos 200 pacientes virtuais com 16 doses, de 0 a
+3 mg/kg de 0,2 em 0,2, ou 16 concentrações-alvo, de 0 a 6 µg/ml de 0,4 em 0,4.
+Para cada uma, a % de pacientes que dorme (BIS < 60), que tem PAM < 65 e < 55
+mmHg e que dorme sem PAM < 65 (ver `chances_por_dose`).
+"""
+responder_chances(p) = responder() do
+    paciente, modo, entrada, remi = ler_formulario(p)
+    valores = modo == "alvo" ? collect(0.0:0.4:6.0) : collect(0.0:0.2:3.0)
+    extra = modo == "alvo" ? (;) : (duracao_bolus_s = entrada.duracao_bolus_s, manutencao_mgkgh = entrada.manutencao_mgkgh)
+    (ok = true, modo = modo, n = 200, linhas = chances_por_dose(valores; paciente..., modo, n = 200, extra..., remi...))
 end
 
 # ---------------------------------------------------------------- servidor
@@ -160,6 +205,10 @@ function atender(sock)
         enviar(sock, "200 OK", "application/json", responder_previsao(ler_parametros(consulta)))
     elseif caminho == "/api/comparar"
         enviar(sock, "200 OK", "application/json", responder_comparar(ler_parametros(consulta)))
+    elseif caminho == "/api/remi"
+        enviar(sock, "200 OK", "application/json", responder_remi(ler_parametros(consulta)))
+    elseif caminho == "/api/chances"
+        enviar(sock, "200 OK", "application/json", responder_chances(ler_parametros(consulta)))
     else
         enviar(sock, "404 Not Found", "text/plain", "Página não encontrada.")
     end

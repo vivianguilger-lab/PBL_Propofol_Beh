@@ -22,6 +22,10 @@
 #                                                                                                estão todos com coadministração ativa (coadmin_status = active), 
 #                                                                                                ou seja, com remifentanil junto. Vamos usar esses casos? 
 #                                                                                                Se sim, acho q o remifentanil precisa entrar no modelo
+#
+# ATUALIZAÇÃO (remifentanil): o remifentanil agora entra no modelo, com os coeficientes
+# publicados por Su 2023 (PAS L971–L978) e a Cp do remifentanil de Minto (remifentanil.jl).
+# Com Cp do remifentanil = 0, tudo fica exatamente igual à versão só com propofol.
 # =============================================================================
 # Curva sigmoide (Hill): vai de 0 (sem propofol) a 1 (efeito máximo).                           
 # c50 = concentração que dá metade do efeito; γ = inclinação da curva.
@@ -43,6 +47,15 @@ Base.@kwdef struct ParametrosSu
     c50_vs::Float64     = 0.44        # Cp com metade do efeito no VS (µg/ml)      L967
     emax_vs35::Float64  = -0.154      # efeito máximo no VS aos 35 anos (−15,4%)   L968
     k_idade_vs::Float64 = 0.0333      # aumento do efeito no VS por ano de idade   L969
+    # remifentanil (Cp em ng/ml) e interação com o propofol
+    c50_remi_rpt::Float64  = 4.59     # Cp do remi com metade do efeito na RPT (ng/ml)   L971
+    emax_remi_rpt::Float64 = -1.0     # efeito máximo do remi na RPT                   L972
+    sl_remi_fc::Float64    = 0.0327   # efeito do remi na FC, por ng/ml                L973
+    sl_remi_vs::Float64    = 0.0581   # efeito do remi no VS, por ng/ml                L974
+    int_fc::Float64        = -0.119   # interação na FC: o propofol muda o efeito do remi      L975
+    c50_int_fc::Float64    = 0.20     # Cp do propofol com metade dessa interação (µg/ml)    L976
+    int_rpt::Float64       = 1.0      # interação na RPT: o remi muda o efeito do propofol     L977
+    int_vs::Float64        = -0.212   # interação no VS: o propofol muda o efeito do remi      L978
 end
 
 # Efeito máximo do propofol no VS para a idade do paciente (PAS L969):
@@ -57,7 +70,7 @@ emax_vs(p::ParametrosSu, idade) = p.emax_vs35 * exp(p.k_idade_vs * (idade - 35))
 #   y[5] = termo dependente do tempo da FC
 # Trabalhar em frações faz o resultado de PAM e FC não depender do VS basal
 # (que não é medido na rotina).
-estado_basal(p::ParametrosSu) = [1.0, 1.0, 1.0, p.ltde_vs, p.ltde_fc]
+estado_basal(p::ParametrosSu) = (1.0, 1.0, 1.0, p.ltde_vs, p.ltde_fc)
 
 # Valores "aparentes" (os que seriam medidos), como fração do basal medido.
 # FC aparente = FC + termo do tempo (PAS L1166); VS aparente = (VS + termo do
@@ -70,54 +83,64 @@ function aparentes(y, p::ParametrosSu)
     return (pam = rpt * vs * fc, fc = fc, vs = vs, rpt = rpt)
 end
 
-# Derivadas do estado (PAS continuous_dynamic, L1118–L1195, com remifentanil = 0).
+# Derivadas do estado (PAS continuous_dynamic, L1118–L1195).
 # Cada variável é "produzida" a uma taxa k_out × (PAM relativa)^fb × (1 + efeito
-# do propofol) e "removida" a uma taxa k_out × valor atual. Quando a PAM cai,
-# (PAM relativa)^fb sobe (fb < 0): é o feedback que puxa a PAM de volta.
-function derivadas(y, cp, idade, p::ParametrosSu)
-    e_rpt = clamp(p.emax_rpt * fsig(cp, p.c50_rpt, p.γ_rpt), -0.999, 0.999)  # L1149, L1157
-    e_vs = clamp(emax_vs(p, idade) * fsig(cp, p.c50_vs, 1), -0.999, 0.999)   # L1153, L1160
+# do propofol) e "removida" a uma taxa k_out × valor atual × (1 − efeito do remi).
+# Quando a PAM cai, (PAM relativa)^fb sobe (fb < 0): é o feedback que puxa a PAM de volta.
+# cp: Cp do propofol (µg/ml); cr: Cp do remifentanil (ng/ml).
+function derivadas(y, cp, cr, idade, p::ParametrosSu)
+    lim(x) = clamp(x, -0.999, 0.999)                                          # L1157–L1161
+    # propofol (o remi muda o efeito do propofol na RPT: interação)            L1149–L1150, L1153
+    e_rpt = lim((p.emax_rpt + p.int_rpt * fsig(cr, p.c50_remi_rpt, 1)) * fsig(cp, p.c50_rpt, p.γ_rpt))
+    e_vs = lim(emax_vs(p, idade) * fsig(cp, p.c50_vs, 1))
+    # remifentanil (o propofol muda o efeito do remi no VS e na FC: interação)  L1151, L1152, L1154
+    r_rpt = lim(p.emax_remi_rpt * fsig(cr, p.c50_remi_rpt, 1))
+    r_vs = lim((p.sl_remi_vs + p.int_vs * fsig(cp, p.c50_vs, 1)) * cr)
+    r_fc = lim((p.sl_remi_fc + p.int_fc * fsig(cp, p.c50_int_fc, 1)) * cr)
     retro = aparentes(y, p).pam^p.fb                                          # L1171, L1175
     # o termo dependente do tempo só começa a cair depois que o propofol entra (L1184)
     k_t = cp > 0 ? p.k_ltde : 0.0
-    return [p.k_out * (retro * (1 + e_rpt) - y[1]),   # RPT  L1175
-            p.k_out * (retro * (1 + e_vs) - y[2]),    # VS   L1179
-            p.k_out * (retro - y[3]),                 # FC   L1182
-            -k_t * y[4],                              # termo do tempo, VS  L1185
-            -k_t * y[5]]                              # termo do tempo, FC  L1186
+    return (p.k_out * (retro * (1 + e_rpt) - y[1] * (1 - r_rpt)),   # RPT  L1175–L1176
+            p.k_out * (retro * (1 + e_vs) - y[2] * (1 - r_vs)),     # VS   L1179
+            p.k_out * (retro - y[3] * (1 - r_fc)),                  # FC   L1182
+            -k_t * y[4],                                            # termo do tempo, VS  L1185
+            -k_t * y[5])                                            # termo do tempo, FC  L1186
 end
 
-# Um passo de Runge-Kutta de 4ª ordem com Cp constante no passo.
-function passo_rk4(y, cp, idade, dt, p)
-    k1 = derivadas(y, cp, idade, p)
-    k2 = derivadas(y .+ dt / 2 .* k1, cp, idade, p)
-    k3 = derivadas(y .+ dt / 2 .* k2, cp, idade, p)
-    k4 = derivadas(y .+ dt .* k3, cp, idade, p)
+# Um passo de Runge-Kutta de 4ª ordem com as Cp constantes no passo.
+function passo_rk4(y, cp, cr, idade, dt, p)
+    k1 = derivadas(y, cp, cr, idade, p)
+    k2 = derivadas(y .+ dt / 2 .* k1, cp, cr, idade, p)
+    k3 = derivadas(y .+ dt / 2 .* k2, cp, cr, idade, p)
+    k4 = derivadas(y .+ dt .* k3, cp, cr, idade, p)
     return y .+ dt / 6 .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
 end
 
 """
-    simular_hemodinamica(cp, pam_basal, fc_basal, idade; dt = 1.0, p = ParametrosSu(), subpassos = 10)
+    simular_hemodinamica(cp, pam_basal, fc_basal, idade; cr = nothing, dt = 1.0, p = ParametrosSu(), subpassos = 10)
 
-Resposta da circulação a uma curva de concentração plasmática de propofol.
+Resposta da circulação às concentrações plasmáticas de propofol e remifentanil.
 
-- `cp`: Cp (µg/ml) a cada `dt` segundos, começando em t = 0.
-- `pam_basal`, `fc_basal`: PAM (mmHg) e FC (bpm) medidas antes da indução.
-- `idade`: anos (muda o efeito no VS).
+- `cp`: Cp do propofol (µg/ml) a cada `dt` segundos, começando em t = 0.
+- `cr`: Cp do remifentanil (ng/ml), nos mesmos instantes (`nothing` = sem remifentanil).
+- `pam_basal`, `fc_basal`: PAM (mmHg) e FC (bpm) medidas antes de qualquer fármaco.
+- `idade`: anos (muda o efeito do propofol no VS).
 
 Devolve `(t, pam, fc, vs_rel, rpt_rel)`: tempo (s), PAM (mmHg), FC (bpm) e VS e
 RPT como fração do basal. Entre duas amostras, usa a média das duas Cp, como o
 PAS (pd_models.py L1262).
 """
-function simular_hemodinamica(cp, pam_basal, fc_basal, idade; dt = 1.0, p = ParametrosSu(), subpassos = 10)
+function simular_hemodinamica(cp, pam_basal, fc_basal, idade; cr = nothing, dt = 1.0, p = ParametrosSu(), subpassos = 10)
     n = length(cp)
+    r = cr === nothing ? zeros(n) : cr
     y = estado_basal(p)
     pam, fc, vs, rpt = zeros(n), zeros(n), zeros(n), zeros(n)
     for k in 1:n
         if k > 1
             c = (cp[k - 1] + cp[k]) / 2
+            c_r = (r[k - 1] + r[k]) / 2
             for _ in 1:subpassos
-                y = passo_rk4(y, c, idade, dt / subpassos, p)
+                y = passo_rk4(y, c, c_r, idade, dt / subpassos, p)
             end
         end
         a = aparentes(y, p)
