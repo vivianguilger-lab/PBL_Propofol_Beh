@@ -355,6 +355,8 @@ Pendências detalhadas em [`docs/decisoes.md`](docs/decisoes.md).
 ## Equipe
 
 Grupo 5 · Engenharia Biomédica · Faculdade Israelita de Ciências da Saúde Albert Einstein · Project Based
+
+Ana Paula Villela Segura, Beatriz Neves de Oliveira, Gustavo Frug Mauro, Leticia Kairuz, Maria Gabriela Medeiros von Adamek, Vivian Polakiewicz Guilger
 Learning, 6º semestre (2026). Orientador: Federico Aletti.
 
 Ana Paula Villela Segura, Beatriz Neves de Oliveira, Gustavo Frug Mauro, Leticia Kairuz, Maria Gabriela
