@@ -77,20 +77,23 @@ function sortear_remifentanil(pr, psu, rng; ω²_pr = ω²_MINTO)
 end
 
 """
-    simular_populacao(idade, peso, altura, sexo, pam_basal, fc_basal, taxa;
+    simular_populacao(idade, peso, altura, sexo, pam_basal, fc_basal, taxa; wk,
                       taxa_remi = nothing, antes_s = 0, n = 500, semente = 1,
                       ω²_pk = ω²_ELEVELD, ω²_c50 = ω²_SU_C50_RPT, ω²_bis = ω²_ELEVELD_BIS)
 
 Simula `n` versões do paciente com a mesma infusão de propofol `taxa` (mg/s, uma
 por segundo, de 0 em diante) e, se houver, de remifentanil `taxa_remi` (µg/s, uma
 por segundo, começando `antes_s` segundos antes do propofol). Devolve o tempo `t`
-(s, 0 = início do propofol) e, uma curva por versão: `curvas` (PAM, mmHg), `fc`
-(bpm), `cp` (Cp do propofol, µg/ml), `cr` (Cp do remifentanil, ng/ml), `rpt` e
-`vs` (resistência e volume sistólico, como fração do basal) e `bis` (BIS no
-monitor). A `semente` fixa o sorteio: a mesma semente dá sempre os mesmos
-pacientes, com ou sem remifentanil.
+(s, 0 = início do propofol) e, uma curva por versão: `curvas` (PAM, mmHg), `pas` e
+`pad` (centrais, mmHg), `fc` (bpm), `dc` (débito cardíaco, L/min), `cp` (Cp do
+propofol, µg/ml), `cr` (Cp do remifentanil, ng/ml), `rpt` e `vs` (resistência e
+volume sistólico, como fração do basal) e `bis` (BIS no monitor).
+
+A pressão de cada versão sai do Windkessel do paciente `wk` (parametrizar_windkessel),
+em malha fechada com o modelo de Su (simular_circulacao). A `semente` fixa o sorteio:
+a mesma semente dá sempre os mesmos pacientes, com ou sem remifentanil.
 """
-function simular_populacao(idade, peso, altura, sexo, pam_basal, fc_basal, taxa;
+function simular_populacao(idade, peso, altura, sexo, pam_basal, fc_basal, taxa; wk,
                            taxa_remi = nothing, antes_s = 0, n = 500, semente = 1,
                            ω²_pk = ω²_ELEVELD, ω²_c50 = ω²_SU_C50_RPT, ω²_bis = ω²_ELEVELD_BIS)
     rng = Xoshiro(semente)
@@ -114,13 +117,17 @@ function simular_populacao(idade, peso, altura, sexo, pam_basal, fc_basal, taxa;
         pr_versao, psu_versao = sortear_remifentanil(pr, psu_versao, rng)
         cp = simular_pk(pk_versao, tp)
         cr = com_remi ? simular_pk(pr_versao, taxa_remi) : zeros(length(tp))
-        # 1 subpasso basta: o resultado é igual ao de 10 (diferença < 1e-11 mmHg) e a conta fica 10 vezes mais rápida
-        h = simular_hemodinamica(cp, pam_basal, fc_basal, idade; cr, p = psu_versao, subpassos = 1)
-        (cp = cp[fica], cr = cr[fica], pam = h.pam[fica], fc = h.fc[fica], rpt = h.rpt_rel[fica], vs = h.vs_rel[fica],
+        # circulação: Windkessel do paciente, com Rp, VS e FC dados pelo modelo de Su desta versão
+        h = simular_circulacao(cp, cr, idade, wk; pam0 = pam_basal, fc0 = fc_basal, p = psu_versao)
+        (cp = cp[fica], cr = cr[fica], pam = h.pam[fica], pas = h.pas[fica], pad = h.pad[fica], dc = h.dc[fica],
+         fc = h.fc[fica], rpt = h.rpt_rel[fica], vs = h.vs_rel[fica],
          bis = simular_bis(pk_versao, tp, idade, peso; p = pb_versao).bis[fica])
     end
     return (t = collect(0.0:length(taxa) - 1),
             curvas = [v.pam for v in versoes],        # PAM (mmHg)
+            pas = [v.pas for v in versoes],           # PAS central (mmHg)
+            pad = [v.pad for v in versoes],           # PAD (mmHg)
+            dc = [v.dc for v in versoes],             # débito cardíaco (L/min)
             fc = [v.fc for v in versoes],             # FC (bpm)
             cp = [v.cp for v in versoes],             # Cp do propofol (µg/ml)
             cr = [v.cr for v in versoes],             # Cp do remifentanil (ng/ml)

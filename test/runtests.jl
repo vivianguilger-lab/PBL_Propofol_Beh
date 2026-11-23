@@ -90,17 +90,19 @@ end
 @testset "Pacientes virtuais (variabilidade publicada)" begin
     taxa = taxa_bolus(1.5 * 72, 30, 301)       # 300 s, para o teste ser rápido
     paciente = (62, 72, 160, "F", 104.0, 78.0)
+    wk = parametrizar_windkessel(pam = 104.0, pad = 82.0, fc = 78.0, peso = 72, altura = 160)
     @testset "mesma semente, mesmas curvas" begin
-        a = simular_populacao(paciente..., taxa; n = 5, semente = 7)
-        b = simular_populacao(paciente..., taxa; n = 5, semente = 7)
-        c = simular_populacao(paciente..., taxa; n = 5, semente = 8)
+        a = simular_populacao(paciente..., taxa; wk, n = 5, semente = 7)
+        b = simular_populacao(paciente..., taxa; wk, n = 5, semente = 7)
+        c = simular_populacao(paciente..., taxa; wk, n = 5, semente = 8)
         @test a.curvas == b.curvas
         @test a.curvas != c.curvas
     end
     @testset "sem variabilidade, todas as versões são o paciente típico" begin
         zero_pk = map(_ -> 0.0, ω²_ELEVELD)    # todos os ω² = 0
-        pop = simular_populacao(paciente..., taxa; n = 3, ω²_pk = zero_pk, ω²_c50 = 0.0, ω²_bis = (ce50 = 0.0, ke0 = 0.0))
-        tipico = simular_hemodinamica(simular_pk(parametros_eleveld(62, 72, 160, "F"), taxa), 104.0, 78.0, 62).pam
+        pop = simular_populacao(paciente..., taxa; wk, n = 3, ω²_pk = zero_pk, ω²_c50 = 0.0, ω²_bis = (ce50 = 0.0, ke0 = 0.0))
+        tipico = simular_circulacao(simular_pk(parametros_eleveld(62, 72, 160, "F"), taxa), nothing, 62, wk;
+                                    pam0 = 104.0, fc0 = 78.0).pam
         @test all(c -> c ≈ tipico, pop.curvas)
         bis_tipico = simular_bis(parametros_eleveld(62, 72, 160, "F"), taxa, 62, 72).bis
         @test all(b -> b ≈ bis_tipico, pop.bis)
@@ -171,10 +173,11 @@ end
 end
 
 @testset "Previsão completa" begin
-    paciente = (idade = 70, peso = 80, altura = 175, sexo = "M", pam = 75.0, fc = 70.0)
+    paciente = (idade = 70, peso = 80, altura = 175, sexo = "M", pas = 105.0, pad = 60.0, pam = 75.0, fc = 70.0)
     @testset "modo dose: igual a montar as partes à mão" begin
         r = prever(; paciente..., dose_mgkg = 2.0, duracao_s = 300, n = 20)
-        pop = simular_populacao(70, 80, 175, "M", 75.0, 70.0, taxa_bolus(160.0, 30, 301); n = 20)
+        wk = parametrizar_windkessel(pam = 75.0, pad = 60.0, fc = 70.0, peso = 80, altura = 175)
+        pop = simular_populacao(70, 80, 175, "M", 75.0, 70.0, taxa_bolus(160.0, 30, 301); wk, n = 20)
         @test r.faixa.mediana ≈ faixa_pam(pop.curvas).mediana
         @test sum(r.taxa) ≈ 160.0               # 2 mg/kg × 80 kg
     end
@@ -192,6 +195,7 @@ end
         @test_throws ErrorException prever(; paciente..., dose_mgkg = 2.0, alvo_ugml = 3.0) # as duas
         @test_throws ErrorException prever(; paciente..., sexo = "X", dose_mgkg = 2.0)
         @test_throws ErrorException prever(; paciente..., peso = -1, dose_mgkg = 2.0)
+        @test_throws ErrorException prever(; paciente..., pad = 80.0, dose_mgkg = 2.0)       # PAD acima da PAM
     end
 end
 
@@ -217,22 +221,22 @@ end
         cab, corpo = pedir(8765, "/")
         @test startswith(cab, "HTTP/1.1 200")
         @test occursin("<form", corpo)
-        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=")
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pas=105&pad=60&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=")
         @test occursin("\"ok\":true", corpo)
         @test occursin("\"pam_med\":[", corpo)                # curvas para os gráficos da página
         @test occursin("\"risco\":", corpo)                   # resumo do cartão de risco
         @test occursin("\"dormindo\":[", corpo)              # % dormindo, para a faixa do sono
         @test occursin("\"sono\":{", corpo)                  # quando, em média, dorme e acorda
-        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=alvo&alvo=3%2C0")
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pas=105&pad=60&pam=75&fc=70&modo=alvo&alvo=3%2C0")
         @test occursin("\"ok\":true", corpo)                  # vírgula decimal aceita
-        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30")
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=&altura=175&pas=105&pad=60&pam=75&fc=70&modo=dose&dose=2&bolus=30")
         @test occursin("Preencha o campo: peso.", corpo)     # erro explicado para o médico
-        cab, corpo = pedir(8765, "/api/comparar?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0")
+        cab, corpo = pedir(8765, "/api/comparar?idade=70&sexo=M&peso=80&altura=175&pas=105&pad=60&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0")
         @test occursin("\"linhas\":[", corpo)                 # gráfico pressão × dose (cartão 04)
         @test count("\"valor\":", corpo) == 61                # 0 a 3,0 mg/kg, de 0,05 em 0,05
-        cab, corpo = pedir(8765, "/api/remi?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0&remi=0.1&remi_antes=9")
+        cab, corpo = pedir(8765, "/api/remi?idade=70&sexo=M&peso=80&altura=175&pas=105&pad=60&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0&remi=0.1&remi_antes=9")
         @test count("\"valor\":", corpo) == 26                # remifentanil de 0 a 0,5 µg/kg/min, de 0,02 em 0,02
-        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0&remi=0.1&remi_antes=9")
+        cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pas=105&pad=60&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0&remi=0.1&remi_antes=9")
         @test occursin("\"cr_med\":[", corpo)                # Cp do remifentanil, para o gráfico
         cab, corpo = pedir(8765, "/outra")
         @test startswith(cab, "HTTP/1.1 404")
@@ -242,12 +246,14 @@ end
 end
 
 @testset "Risco por dose (paciente típico)" begin
-    paciente = (idade = 81, peso = 64, altura = 168, sexo = "M", pam = 107.0, fc = 64.0)
+    paciente = (idade = 81, peso = 64, altura = 168, sexo = "M", pas = 168.0, pad = 76.0, pam = 107.0, fc = 64.0)
     r = risco_por_dose([1.0, 2.0, 3.0]; paciente...)
-    @test risco_por_dose([0.0]; paciente...)[1].pam_min ≈ 107.0   # sem propofol, a PAM fica na basal
+    @test risco_por_dose([0.0]; paciente...)[1].pam_min ≈ 107.0 atol = 1e-6   # sem propofol, a PAM fica na basal
     # igual a simular o paciente típico à mão, dose por dose
     pk = parametros_eleveld(81, 64, 168, "M")
-    manual = minimum(simular_hemodinamica(simular_pk(pk, taxa_bolus(2.0 * 64, 30, 1201)), 107.0, 64.0, 81).pam)
+    wk = parametrizar_windkessel(pam = 107.0, pad = 76.0, fc = 64.0, peso = 64, altura = 168)
+    manual = minimum(simular_circulacao(simular_pk(pk, taxa_bolus(2.0 * 64, 30, 1201)), nothing, 81, wk;
+                                        pam0 = 107.0, fc0 = 64.0).pam)
     @test r[2].pam_min ≈ manual
     @test r[1].pam_min > r[2].pam_min > r[3].pam_min    # mais dose, PAM mínima mais baixa
     @test r[2].risco == nivel(round(manual))
@@ -299,18 +305,18 @@ end
     cp0 = simular_pk(parametros_eleveld(62, 72, 160, "F"), taxa_bolus(1.5 * 72, 30, 1201))
     @test simular_hemodinamica(cp0, 104.0, 78.0, 62; cr = zeros(1201)).pam == simular_hemodinamica(cp0, 104.0, 78.0, 62).pam
     @testset "pressão por dose de remifentanil" begin
-        paciente = (idade = 62, peso = 72, altura = 160, sexo = "F", pam = 104.0, fc = 78.0)
+        paciente = (idade = 62, peso = 72, altura = 160, sexo = "F", pas = 148.0, pad = 82.0, pam = 104.0, fc = 78.0)
         r = risco_por_remi([0.0, 0.1, 0.2]; paciente..., dose_mgkg = 1.5)
         @test r[1].pam_min > r[2].pam_min > r[3].pam_min    # mais remifentanil, PAM mínima mais baixa
         @test r[1].pam_min ≈ risco_por_dose([1.5]; paciente...)[1].pam_min   # remi 0 = só propofol
         @test risco_por_dose([1.5]; paciente..., remi_ugkgmin = 0.1)[1].pam_min ≈ r[2].pam_min
     end
     @testset "previsão com remifentanil" begin
-        r = prever(idade = 62, peso = 72, altura = 160, sexo = "F", pam = 104.0, fc = 78.0, dose_mgkg = 1.5,
+        r = prever(idade = 62, peso = 72, altura = 160, sexo = "F", pas = 148.0, pad = 82.0, pam = 104.0, fc = 78.0, dose_mgkg = 1.5,
                    remi_ugkgmin = 0.12, n = 50)
         @test r.faixa.mediana[1] < 104.0                     # no início do propofol, o remi já baixou a PAM
         @test r.cr.mediana[1] > 0                            # e já há remifentanil no sangue
-        @test_throws ErrorException prever(idade = 62, peso = 72, altura = 160, sexo = "F", pam = 104.0, fc = 78.0,
+        @test_throws ErrorException prever(idade = 62, peso = 72, altura = 160, sexo = "F", pas = 148.0, pad = 82.0, pam = 104.0, fc = 78.0,
                                            dose_mgkg = 1.5, remi_ugkgmin = -0.1)
     end
     @testset "sorteio do remifentanil: média 0 e covariância publicadas" begin
@@ -328,5 +334,45 @@ end
         @test cov(b, b) ≈ 0.00868 rtol = 0.05
         @test cov(a, b) ≈ 0.00329 rtol = 0.05
         @test cov(log.([x[1].CL for x in v]), log.([x[1].CL for x in v])) ≈ ω²_MINTO.CL rtol = 0.05
+    end
+end
+
+# O centro do modelo: Windkessel de 4 elementos (Stergiopulos 1999), parametrizado com o
+# monitor e acoplado ao modelo de Su em malha fechada.
+@testset "Windkessel de 4 elementos" begin
+    wk = parametrizar_windkessel(pam = 104.0, pad = 82.0, fc = 78.0, peso = 72, altura = 160)
+    @testset "sem fluxo, a pressão cai exponencialmente: P(t) = P0·e^(−t/RpC)" begin
+        Rp, C = 1.0, 1.2
+        b = batimento(Rp, C, 0.056, 0.0051, 60.0, 0.0, (C * 100.0, 0.0); guardar = true)   # 1 s sem ejeção
+        t = 0.005 .* (0:length(b.pressao) - 1)
+        @test maximum(abs.(b.pressao .- 100.0 .* exp.(-t ./ (Rp * C)))) < 1e-9
+    end
+    @testset "PAM = Rp × fluxo médio (lei de Ohm da circulação)" begin
+        @test wk.pam ≈ wk.Rp * wk.dc * 1000 / 60 rtol = 1e-9
+        @test wk.pam ≈ 104.0 rtol = 1e-9                     # Rp = PAM/DC reproduz a PAM medida
+        @test wk.pad ≈ 82.0 atol = 1e-6                       # C identificada pela PAD medida
+        @test wk.pas > wk.pam > wk.pad
+        @test 0.5 < wk.C < 2.0                                # perto da de Stergiopulos (1,22 mL/mmHg)
+    end
+    @testset "batimento periódico: o estado se repete" begin
+        b = batimento(wk.Rp, wk.C, wk.Rc, wk.L, 78.0, wk.vs, wk.x0)
+        @test all(abs.(b.x .- wk.x0) .< 1e-9)
+    end
+    @testset "malha fechada sem fármaco: tudo fica no basal" begin
+        s = simular_circulacao(zeros(300), nothing, 62, wk; pam0 = 104.0, fc0 = 78.0)
+        @test maximum(abs.(s.pam .- 104.0)) < 1e-9
+        @test maximum(abs.(s.pad .- 82.0)) < 1e-6
+    end
+    @testset "congruência: a PAM do Windkessel acompanha a do modelo de Su" begin
+        pk = parametros_eleveld(62, 72, 160, "F"; opioide = true)
+        tp = vcat(zeros(540), taxa_bolus(1.5 * 72, 30, 1201))
+        cr = simular_pk(parametros_minto(62, 72, 160, "F"), taxa_remifentanil(72; ugkgmin = 0.12, antes_s = 540, duracao_s = 1200))
+        cp = simular_pk(pk, tp)
+        su = simular_hemodinamica(cp, 104.0, 78.0, 62; cr).pam
+        s = simular_circulacao(cp, cr, 62, wk; pam0 = 104.0, fc0 = 78.0)
+        @test maximum(abs.(s.pam .- su)) < 1.0                # diferença só nos transitórios (< 1 mmHg)
+        @test abs(minimum(s.pam) - minimum(su)) < 0.2
+        @test all(s.pas .> s.pam .> s.pad)
+        @test s.dc[end] < s.dc[1]                             # o débito cai com os fármacos
     end
 end

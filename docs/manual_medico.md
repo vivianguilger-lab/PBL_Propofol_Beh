@@ -1,9 +1,11 @@
 # Manual da plataforma — previsão da PAM na indução com propofol e remifentanil
 
-A plataforma mostra a **faixa** em que a pressão arterial média (PAM) do paciente
-deve ficar nos 20 minutos após o início do propofol, e **em que períodos** ela
-pode entrar em risco de hipotensão. Mostra também quando o paciente deve dormir
-(BIS abaixo de 60).
+A plataforma monta um **Windkessel de 4 elementos** com os dados do paciente (a
+árvore arterial dele, em analogia com um circuito elétrico) e simula, batimento a
+batimento, a pressão arterial nos 20 minutos após o início do propofol. Mostra a
+**faixa** em que a pressão arterial média (PAM) deve ficar, a PAS e a PAD,
+**em que períodos** a PAM pode entrar em risco de hipotensão e quando o paciente
+deve dormir (BIS abaixo de 60).
 
 > Ferramenta de ensino e pesquisa. Não substitui a avaliação e a decisão
 > clínica do anestesiologista.
@@ -31,8 +33,9 @@ Se o navegador não abrir sozinho, digite no navegador: `http://127.0.0.1:8080`
 ## 3. Usar
 
 1. **Paciente:** idade, sexo, peso e altura.
-2. **Monitor antes da indução:** PAM e FC medidas antes de qualquer fármaco
-   (antes do remifentanil).
+2. **Monitor antes da indução:** PAS, PAD, PAM e FC medidas antes de qualquer
+   fármaco (antes do remifentanil). O **débito cardíaco** é opcional: se não for
+   informado, é estimado pela superfície corporal (3,0 L/min/m²).
 3. **Propofol:** escolha uma das duas formas:
    - **Dose:** dose em mg/kg, tempo de injeção e, se houver, a manutenção em
      mg/kg/h;
@@ -59,6 +62,16 @@ Aceita vírgula ou ponto nos números (2,5 ou 2.5).
   no alto fica mais forte quanto mais pacientes estão dormindo (BIS < 60); as
   linhas roxas pontilhadas marcam quando, em média, o paciente dorme e acorda.
   O tempo está em segundos após o início do propofol.
+- **PAS e PAD (linhas tracejadas):** pressões **centrais** (na aorta), que é o
+  que o Windkessel calcula. A PAD e a PAM são praticamente as mesmas do braço; a
+  PAS central é menor que a do manguito, porque a onda de pressão se amplifica
+  até a periferia.
+- **Windkessel do paciente:** os parâmetros da árvore arterial do paciente (Rp,
+  C, Rc, L e a constante de tempo Rp·C) e a onda de pressão e de fluxo aórticos
+  em três batimentos: o basal, o do início do propofol e o da PAM mínima.
+- **Débito cardíaco** e **Como os fármacos mudam o Windkessel:** quanto a
+  resistência (Rp), o volume sistólico e a FC mudam ao longo do tempo, em
+  porcentagem do basal.
 - **Pressão por dose de propofol:** a PAM mínima para cada dose de propofol,
   com o remifentanil fixo no valor escolhido.
 - **Pressão por dose de remifentanil:** a PAM mínima para cada taxa de
@@ -69,8 +82,12 @@ Aceita vírgula ou ponto nos números (2,5 ou 2.5).
 
 ## 5. Limitações
 
-- O efeito do propofol e do remifentanil na pressão vem de um estudo em **voluntários saudáveis**
-  (Su et al. 2023) e ainda **não foi validado em pacientes**.
+- O quanto o propofol e o remifentanil mudam a resistência, o volume sistólico
+  e a FC vem de um estudo em **voluntários saudáveis** (Su et al. 2023) e ainda
+  **não foi validado em pacientes**.
+- No Windkessel, Rc, L e a forma da onda de fluxo são os de Stergiopulos (1999)
+  para todos os pacientes, e a complacência (C) fica constante durante a
+  anestesia.
 - A faixa usa a variabilidade publicada nos artigos; a variação real entre
   pacientes provavelmente é **maior**.
 - O modelo considera **o propofol e o remifentanil**: não inclui outros opioides,

@@ -13,11 +13,23 @@ dizer que ainda falta conferir ou decidir.
 
 | # | Decisão | Por quê / fonte | Situação |
 |---|---|---|---|
-| 2 | Efeito do propofol na circulação: estrutura e valores de Su 2023. | Su H et al. *Br J Anaesth* 2023;131:222–33; implementação de referência no PAS (`pd_models.py` L890). Valores estimados em voluntários saudáveis: ponto de partida, não verdade final. | Verificado contra o PAS (diferença < 10⁻¹² mmHg). **Pendente:** conferir os 12 valores nas tabelas do artigo; o PAS declara `age_max_sv = 0.033` mas usa 0,0333; significado do "termo dependente do tempo". |
-| 3 | O VS basal não é usado. | A PAM e a FC previstas não dependem dele (tudo em fração do basal); no PAS, VS basal de 70 ou 90 ml dá a mesma PAM. | Confirmado (teste). |
+| 2 | Variação de Rp, VS e FC durante a anestesia (efeito do propofol e barorreflexo): estrutura e valores de Su 2023, como **complemento** do Windkessel (item 20). | Su H et al. *Br J Anaesth* 2023;131:222–33; implementação de referência no PAS (`pd_models.py` L890). Valores estimados em voluntários saudáveis: ponto de partida, não verdade final. | Verificado contra o PAS (diferença < 10⁻¹² mmHg). **Pendente:** conferir os 12 valores nas tabelas do artigo; o PAS declara `age_max_sv = 0.033` mas usa 0,0333; significado do "termo dependente do tempo". |
+| 3 | ~~O VS basal não é usado.~~ **Substituída pelo item 20:** o VS basal agora é usado pelo Windkessel (VS0 = DC0/FC0). | No modelo de Su sozinho, a PAM não depende do VS basal (tudo em fração do basal). No Windkessel, o VS em mL define a onda de fluxo de cada batimento, a PAS e a PAD. | Resolvida. |
 | 4 | Farmacocinética: Eleveld 2018, concentração arterial; **com os termos de opioide quando há remifentanil** (item 15). | Eleveld DJ et al. *Br J Anaesth* 2018;120:942–59. Mesmo grupo do Su; usado junto com o Su no PAS; população ampla; publica a variabilidade. | Verificado contra o PAS (diferença < 10⁻¹³ µg/ml). **Pendente:** qual PK o Su usou para calcular a Cp. |
 | 5 | Entrada por concentração-alvo: alvo no **plasma**; taxa calculada com o paciente **típico**; sem limite de bomba por padrão. | O Su usa a Cp, e o alvo no sítio efetor exigiria um ke0. Uma bomba real calcula com o paciente típico. O limite da bomba depende do equipamento. | Testado (`taxa_alvo`). |
 | 6 | Tempo em segundos em todo o código e nos gráficos. | Pedido do grupo, para facilitar a análise. | — |
+
+## Windkessel (árvore arterial) — o centro do modelo
+
+| # | Decisão | Por quê / fonte | Situação |
+|---|---|---|---|
+| 20 | A pressão arterial é calculada por um **Windkessel de 4 elementos** (forma paralela: Rc em paralelo com L, em série com C em paralelo com Rp), batimento a batimento. O modelo de Su entra como complemento: dá, a cada batimento, as frações do basal de Rp (RPT), VS e FC; a PAM do batimento volta ao Su como feedback do barorreflexo. | É o modelo da disciplina (Modelagem do Sistema Cardiovascular) e o modelo do projeto desde o início (PBL_6). Equações e parâmetros de Stergiopulos N et al. *Am J Physiol* 1999;276:H81–8; implementação de referência windkessel-id (Pigot, licença MIT), já portada no PBL_6. O Su elimina os valores ilustrativos de variação dos parâmetros que a versão anterior usava. | Testado: em regime, PAM do Windkessel = Rp × DC = PAM do Su; diferença máxima nos transitórios 0,43 mmHg (`runtests.jl`). |
+| 21 | Discretização exata (a matriz do sistema é diagonal), passo de **5 ms**; o batimento começa no estado periódico x0 = xₙ⁰/(1 − aⁿ). | windkessel-id (`solvex0`); PBL_6 `src/windkessel.jl`. 5 ms é a amostragem do batimento de Stergiopulos. | Testado (o batimento basal se repete igual). |
+| 22 | Onda de fluxo aórtico: o batimento tipo A de Stergiopulos (`dados/stergiopulos1999/aflow.csv`, 166 amostras), esticado para 60/FC e escalado para que o fluxo médio seja **exatamente** VS × FC/60. | Forma publicada e usada no windkessel-id. A escala exata garante a PAM basal igual à medida. | Testado. **Limitação:** a forma é a mesma para todos os pacientes. |
+| 23 | Rc = 0,056 mmHg·s/mL e L = 0,0051 mmHg·s²/mL fixos, de Stergiopulos (1999). | Sem a onda de pressão invasiva, Rc e L não são identificáveis pelos dados do monitor. | **Pendente:** ajustar a partir da pressão invasiva do VitalDB, como no windkessel-id. |
+| 24 | DC basal: o medido, se houver; se não, **3,0 L/min/m² × superfície corporal de Mosteller**. VS0 = DC0/FC0; Rp = PAM/DC0. | Índice cardíaco normal em repouso, como no PBL_6. Mosteller RD. *N Engl J Med* 1987;317:1098. Rp vem da lei de Ohm da circulação (no regime médio, C não passa fluxo e L curto-circuita Rc). | — |
+| 25 | C identificada por bissecção (0,05 a 20 mL/mmHg) para que a **PAD** simulada seja a medida. | O Windkessel dá a pressão **central**. A PAM e a PAD quase não mudam da aorta ao braço; a PAS do manguito é amplificada na periferia (Agabiti-Rosei E et al. *Hypertension* 2007;50:154–60). Ajustar pela PAS do braço daria uma C errada. | Testado. Por isso a PAS central mostrada é menor que a do braço (20 a 31 mmHg nos três exemplos). |
+| 26 | C constante durante a anestesia. | Su não descreve efeito do propofol na complacência; não há valor publicado para usar. | **Limitação.** |
 
 ## Faixas e risco
 
@@ -49,7 +61,7 @@ dizer que ainda falta conferir ou decidir.
 
 Não usados (e por quê):
 - **Variante "VitalDB" do Su no PAS** (`pd_models.py` L980–L987: `int_hr` −0,097, `fb` −0,5, efeito máximo do propofol na RPT −0,03). Foi ajustada junto com um modelo de estímulos (intubação e cirurgia) que não temos; sem ele, os valores não valem sozinhos.
-- **Calibração da Beatriz no PBL_6** (`resultados/comparacao_propofol_remifentanil/`): é do modelo antigo (Windkessel, Schnider), não do Su.
+- **Calibração da Beatriz no PBL_6** (`resultados/comparacao_propofol_remifentanil/`): calibra os fatores ilustrativos da versão anterior (sensibilidade e variação dos parâmetros do Windkessel com Schnider), que foram trocados pelos valores publicados do Su; não vale para as equações atuais.
 - **`fator_fc_remifentanil` do PBL_6:** o próprio código diz que é uma hipótese exploratória, não validada.
 - **Taxas acima de 0,5 µg/kg/min** no gráfico pressão × dose de remifentanil: a maior taxa média nos 21 casos foi 0,46.
 

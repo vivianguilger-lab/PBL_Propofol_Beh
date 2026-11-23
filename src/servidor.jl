@@ -72,9 +72,11 @@ end
 # A manutenção chega em µg/kg/min (como na bomba) e vai para o modelo em mg/kg/h (× 60 ÷ 1000).
 # O remifentanil chega em µg/kg/min e o início dele em minutos antes do propofol (vai em segundos).
 function ler_formulario(p)
+    dc = haskey(p, "dc") && !isempty(strip(p["dc"])) ? numero(p, "dc", "débito cardíaco") : nothing
     paciente = (idade = numero(p, "idade", "idade"), peso = numero(p, "peso", "peso"),
                 altura = numero(p, "altura", "altura"), sexo = get(p, "sexo", ""),
-                pam = numero(p, "pam", "PAM"), fc = numero(p, "fc", "FC"))
+                pas = numero(p, "pas", "PAS"), pad = numero(p, "pad", "PAD"),
+                pam = numero(p, "pam", "PAM"), fc = numero(p, "fc", "FC"), dc = dc)
     modo = get(p, "modo", "dose")
     manut = haskey(p, "manut") && !isempty(strip(p["manut"])) ? numero(p, "manut", "manutenção") : 0.0
     entrada = modo == "alvo" ? (alvo_ugml = numero(p, "alvo", "concentração-alvo"),) :
@@ -119,7 +121,14 @@ responder_previsao(p) = responder() do
               pam_q1 = a(r.metade.inf), pam_q3 = a(r.metade.sup),
               bis_inf = a(r.bis.inf), bis_q1 = a(r.metade_bis.inf), bis_med = a(r.bis.mediana),
               bis_q3 = a(r.metade_bis.sup), bis_sup = a(r.bis.sup), dormindo = a(r.dormindo),
-              cr_inf = a(r.cr.inf), cr_med = a(r.cr.mediana), cr_sup = a(r.cr.sup))
+              cr_inf = a(r.cr.inf), cr_med = a(r.cr.mediana), cr_sup = a(r.cr.sup),
+              pas_inf = a(r.pas.inf), pas_med = a(r.pas.mediana), pas_sup = a(r.pas.sup),
+              pad_inf = a(r.pad.inf), pad_med = a(r.pad.mediana), pad_sup = a(r.pad.sup),
+              dc_inf = a(r.dc.inf), dc_med = a(r.dc.mediana), dc_sup = a(r.dc.sup))
+    # Windkessel do paciente e onda de pressão do paciente típico (a cada 5 ms)
+    wk = (Rp = r.wk.Rp, C = r.wk.C, Rc = r.wk.Rc, L = r.wk.L, dc = r.wk.dc, vs = r.wk.vs, tau = round(r.wk.Rp * r.wk.C; digits = 2),
+          pas = r.wk.pas, pad = r.wk.pad, pam = r.wk.pam, pas_braco = paciente.pas)
+    ondas = [(t = o.t, pressao = o.pressao, fluxo = o.fluxo, pas = o.pas, pad = o.pad, pam = o.pam, fc = o.fc) for o in r.ondas]
     periodos = [(inicio = x.inicio, fim = x.fim, pior = x.pior, melhor = x.melhor,
                  pam_min = x.pam_min, pam_max = x.pam_max) for x in r.periodos]
     su = ParametrosSu()
@@ -133,7 +142,7 @@ responder_previsao(p) = responder() do
     sono = (r.sono..., ce50 = PropofolWK.ce50_bis(bis, paciente.idade), ke0 = PropofolWK.ke0_bis(bis, paciente.peso) * 60,
             atraso = PropofolWK.atraso_bis(bis, paciente.idade), ω²_ce50 = ω²_ELEVELD_BIS.ce50, ω²_ke0 = ω²_ELEVELD_BIS.ke0)
     (ok = true, modo = modo, dose_mg = sum(r.taxa), remi_ug = r.taxa_remi === nothing ? 0.0 : sum(r.taxa_remi),
-     remi = remi, curvas = curvas, metricas = r.metricas, sono = sono,
+     remi = remi, curvas = curvas, metricas = r.metricas, sono = sono, wk = wk, ondas = ondas,
      periodos = periodos, texto = r.texto, pk = r.pk, pk_remi = r.pk_remi, parametros = parametros)
 end
 

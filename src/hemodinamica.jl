@@ -26,6 +26,12 @@
 # ATUALIZAÇÃO (remifentanil): o remifentanil agora entra no modelo, com os coeficientes
 # publicados por Su 2023 (PAS L971–L978) e a Cp do remifentanil de Minto (remifentanil.jl).
 # Com Cp do remifentanil = 0, tudo fica exatamente igual à versão só com propofol.
+#
+# ATUALIZAÇÃO (Windkessel): o modelo central é o Windkessel de 4 elementos (windkessel.jl).
+# Este arquivo dá a ele os parâmetros que mudam com os fármacos: Rp (= RPT), VS e FC, com
+# os valores publicados por Su 2023 no lugar dos valores ilustrativos do modelo anterior
+# (Imax, Ce50, γ e o fator de sensibilidade s). Na simulação acoplada (circulacao.jl), o
+# feedback do barorreflexo usa a PAM calculada pelo Windkessel (argumento pam_rel).
 # =============================================================================
 # Curva sigmoide (Hill): vai de 0 (sem propofol) a 1 (efeito máximo).                           
 # c50 = concentração que dá metade do efeito; γ = inclinação da curva.
@@ -88,7 +94,9 @@ end
 # do propofol) e "removida" a uma taxa k_out × valor atual × (1 − efeito do remi).
 # Quando a PAM cai, (PAM relativa)^fb sobe (fb < 0): é o feedback que puxa a PAM de volta.
 # cp: Cp do propofol (µg/ml); cr: Cp do remifentanil (ng/ml).
-function derivadas(y, cp, cr, idade, p::ParametrosSu)
+# pam_rel: PAM/PAM basal usada no feedback. Sem ela (nothing), é a do próprio Su (RPT × VS × FC);
+# acoplado ao Windkessel, é a PAM média do último batimento calculada pelo Windkessel.
+function derivadas(y, cp, cr, idade, p::ParametrosSu; pam_rel = nothing)
     lim(x) = clamp(x, -0.999, 0.999)                                          # L1157–L1161
     # propofol (o remi muda o efeito do propofol na RPT: interação)            L1149–L1150, L1153
     e_rpt = lim((p.emax_rpt + p.int_rpt * fsig(cr, p.c50_remi_rpt, 1)) * fsig(cp, p.c50_rpt, p.γ_rpt))
@@ -97,7 +105,7 @@ function derivadas(y, cp, cr, idade, p::ParametrosSu)
     r_rpt = lim(p.emax_remi_rpt * fsig(cr, p.c50_remi_rpt, 1))
     r_vs = lim((p.sl_remi_vs + p.int_vs * fsig(cp, p.c50_vs, 1)) * cr)
     r_fc = lim((p.sl_remi_fc + p.int_fc * fsig(cp, p.c50_int_fc, 1)) * cr)
-    retro = aparentes(y, p).pam^p.fb                                          # L1171, L1175
+    retro = (pam_rel === nothing ? aparentes(y, p).pam : pam_rel)^p.fb       # L1171, L1175
     # o termo dependente do tempo só começa a cair depois que o propofol entra (L1184)
     k_t = cp > 0 ? p.k_ltde : 0.0
     return (p.k_out * (retro * (1 + e_rpt) - y[1] * (1 - r_rpt)),   # RPT  L1175–L1176
@@ -108,11 +116,11 @@ function derivadas(y, cp, cr, idade, p::ParametrosSu)
 end
 
 # Um passo de Runge-Kutta de 4ª ordem com as Cp constantes no passo.
-function passo_rk4(y, cp, cr, idade, dt, p)
-    k1 = derivadas(y, cp, cr, idade, p)
-    k2 = derivadas(y .+ dt / 2 .* k1, cp, cr, idade, p)
-    k3 = derivadas(y .+ dt / 2 .* k2, cp, cr, idade, p)
-    k4 = derivadas(y .+ dt .* k3, cp, cr, idade, p)
+function passo_rk4(y, cp, cr, idade, dt, p; pam_rel = nothing)
+    k1 = derivadas(y, cp, cr, idade, p; pam_rel)
+    k2 = derivadas(y .+ dt / 2 .* k1, cp, cr, idade, p; pam_rel)
+    k3 = derivadas(y .+ dt / 2 .* k2, cp, cr, idade, p; pam_rel)
+    k4 = derivadas(y .+ dt .* k3, cp, cr, idade, p; pam_rel)
     return y .+ dt / 6 .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
 end
 

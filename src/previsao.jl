@@ -7,8 +7,10 @@
 #                         b) concentração-alvo no plasma (µg/ml)
 #        remifentanil (µg/s), opcional: infusão contínua (µg/kg/min), começando
 #                         um tempo antes do propofol, como nas induções do VitalDB
-#   2. pacientes virtuais (populacao.jl) → uma curva de PAM por versão
-#   3. faixa da PAM e períodos de risco (risco.jl)
+#   2. o Windkessel do paciente (windkessel.jl), parametrizado com PAM, PAD, FC e DC
+#   3. pacientes virtuais (populacao.jl): cada um é o Windkessel do paciente em malha
+#      fechada com o modelo de Su (circulacao.jl) → PAS, PAD e PAM batimento a batimento
+#   4. faixas da pressão e períodos de risco (risco.jl)
 # =============================================================================
 
 """
@@ -36,7 +38,7 @@ taxa_remi_ou_nada(peso, ugkgmin, antes_s, duracao_s) =
     ugkgmin > 0 ? taxa_remifentanil(peso; ugkgmin, antes_s, duracao_s) : nothing
 
 """
-    prever(; idade, peso, altura, sexo, pam, fc,
+    prever(; idade, peso, altura, sexo, pas, pad, pam, fc, dc = nothing,
              dose_mgkg = nothing, duracao_bolus_s = 30, manutencao_mgkgh = 0,
              alvo_ugml = nothing, remi_ugkgmin = 0, remi_antes_s = 540,
              duracao_s = 1200, n = 500, semente = 1)
@@ -44,7 +46,10 @@ taxa_remi_ou_nada(peso, ugkgmin, antes_s, duracao_s) =
 Previsão da PAM durante a indução, como faixa, para um paciente.
 
 Dados do paciente: `idade` (anos), `peso` (kg), `altura` (cm), `sexo` ("M" ou
-"F"), `pam` e `fc` medidas antes de qualquer fármaco (mmHg e bpm).
+"F"); `pas`, `pad`, `pam` e `fc` medidas antes de qualquer fármaco (mmHg e bpm) e,
+se houver, o débito cardíaco `dc` (L/min). PAM, PAD, FC e DC parametrizam o
+Windkessel do paciente (parametrizar_windkessel); a PAS medida (no braço) serve de
+comparação com a PAS central simulada.
 
 Propofol (escolha UMA entrada):
 - `dose_mgkg`: bolus em mg/kg, injetado em `duracao_bolus_s` segundos, seguido
@@ -62,7 +67,7 @@ tempo (s, 0 = início do propofol), taxas de infusão, faixa da PAM (`inf`,
 Cp do propofol e da Cp do remifentanil; medianas da RPT e do VS (fração do
 basal); o resumo (`metricas`), o sono (BIS) e as farmacocinéticas típicas.
 """
-function prever(; idade, peso, altura, sexo, pam, fc,
+function prever(; idade, peso, altura, sexo, pas, pad, pam, fc, dc = nothing,
                   dose_mgkg = nothing, duracao_bolus_s = 30, manutencao_mgkgh = 0,
                   alvo_ugml = nothing, remi_ugkgmin = 0, remi_antes_s = 540,
                   duracao_s = 1200, n = 500, semente = 1)
@@ -71,6 +76,9 @@ function prever(; idade, peso, altura, sexo, pam, fc,
         error("Escolha UMA entrada: dose_mgkg (dose) ou alvo_ugml (concentração-alvo).")
     sexo in ("M", "F") || error("sexo deve ser \"M\" ou \"F\".")
     all(>(0), (idade, peso, altura, pam, fc)) || error("idade, peso, altura, pam e fc devem ser positivos.")
+    pad < pam < pas || error("A PAM deve ficar entre a PAD e a PAS.")
+    dc === nothing || dc > 0 || error("O débito cardíaco deve ser positivo.")
+    wk = parametrizar_windkessel(; pam, pad, fc, dc, peso, altura)
     remi_ugkgmin >= 0 && remi_antes_s >= 0 || error("O remifentanil e o tempo de início não podem ser negativos.")
 
     # 1. taxas de infusão: remifentanil (µg/s, de -remi_antes_s em diante) e propofol (mg/s, de 0 a duracao_s)
@@ -79,13 +87,18 @@ function prever(; idade, peso, altura, sexo, pam, fc,
                         duracao_s, opioide = taxa_r !== nothing)
 
     # 2. pacientes virtuais e 3. faixa e períodos de risco
-    pop = simular_populacao(idade, peso, altura, sexo, pam, fc, taxa; taxa_remi = taxa_r, antes_s = remi_antes_s, n, semente)
+    pop = simular_populacao(idade, peso, altura, sexo, pam, fc, taxa; wk, taxa_remi = taxa_r, antes_s = remi_antes_s, n, semente)
     faixa = faixa_pam(pop.curvas)
     periodos = periodos_de_risco(pop.t, faixa.inf, faixa.sup)
     # as outras saídas, também como faixa (FC e Cp) ou mediana (RPT e VS)
     faixa_fc, faixa_cp, faixa_cr = faixa_pam(pop.fc), faixa_pam(pop.cp), faixa_pam(pop.cr)
+    faixa_pas, faixa_pad, faixa_dc = faixa_pam(pop.pas), faixa_pam(pop.pad), faixa_pam(pop.dc)
     rpt, vs = faixa_pam(pop.rpt).mediana, faixa_pam(pop.vs).mediana
     mt = metricas(pop.t, pam, fc, faixa, faixa_fc, faixa_cp, rpt, vs)
+    # PAS e PAD centrais (medianas) no instante da PAM mínima, e débito cardíaco basal e nesse instante
+    i = argmin(faixa.mediana)
+    mt = merge(mt, (pas_nadir = faixa_pas.mediana[i], pad_nadir = faixa_pad.mediana[i],
+                    dc_basal = wk.dc, dc_nadir = faixa_dc.mediana[i]))
     # "metade dos pacientes": percentis 25% e 75% da PAM (a faixa de antes é de 5% a 95%)
     metade = faixa_pam(pop.curvas; inferior = 0.25, superior = 0.75)
     # sono: BIS como faixa (5–95% e 25–75%), % de pacientes dormindo (BIS < 60) a cada instante e,
@@ -97,7 +110,14 @@ function prever(; idade, peso, altura, sexo, pam, fc,
     i_acorda = sono.t_hipnose === nothing ? nothing : findnext(>=(LIMIAR_BIS), faixa_bis.mediana, findfirst(==(sono.t_hipnose), pop.t))
     sono = merge(sono, (t_acorda = i_acorda === nothing ? nothing : pop.t[i_acorda],
                         pct_max = maximum(dormindo), t_pct_max = pop.t[argmax(dormindo)]))
+    # onda de pressão do paciente típico: batimento basal (antes de qualquer fármaco), no início do
+    # propofol (com remifentanil; sem ele, 60 s depois) e na PAM mínima
+    tip = simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s; wk)
+    t_min = Float64(argmin(tip.pam) - 1)
+    ondas = ondas_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s; wk,
+                         momentos = [-0.5 - (taxa_r === nothing ? 0 : remi_antes_s), taxa_r === nothing ? 60.0 : 0.0, t_min])
     return (t = pop.t, taxa = taxa, taxa_remi = taxa_r, faixa = faixa, periodos = periodos, texto = descrever(periodos),
+            pas = faixa_pas, pad = faixa_pad, dc = faixa_dc, wk = wk, ondas = ondas,
             fc = faixa_fc, cp = faixa_cp, cr = faixa_cr, rpt = rpt, vs = vs, metricas = mt, metade = metade,
             bis = faixa_bis, metade_bis = metade_bis, dormindo = dormindo, sono = sono,
             pk = parametros_eleveld(idade, peso, altura, sexo; opioide = taxa_r !== nothing),
@@ -130,21 +150,35 @@ function metricas(t, pam_basal, fc_basal, faixa, fc, cp, rpt, vs; limiares = LIM
 end
 
 """
-    simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_remi, antes_s)
+    simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_remi, antes_s; wk)
 
-O paciente TÍPICO (os valores médios dos modelos, sem sorteio de versões): PAM
-(mmHg) e BIS do início do propofol (0 s) até o fim. `taxa`: propofol (mg/s, de 0
-em diante); `taxa_remi`: remifentanil (µg/s, de -antes_s em diante) ou `nothing`.
+O paciente TÍPICO (os valores médios dos modelos, sem sorteio de versões): PAM, PAS e
+PAD (mmHg, do Windkessel `wk`) e BIS, do início do propofol (0 s) até o fim. `taxa`:
+propofol (mg/s, de 0 em diante); `taxa_remi`: remifentanil (µg/s, de -antes_s em
+diante) ou `nothing`.
 """
-function simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_remi, antes_s)
+function simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_remi, antes_s; wk)
     com_remi = taxa_remi !== nothing
     antes = com_remi ? antes_s : 0
     pk = parametros_eleveld(idade, peso, altura, sexo; opioide = com_remi)
     tp = vcat(zeros(antes), taxa)
     cr = com_remi ? simular_pk(parametros_minto(idade, peso, altura, sexo), taxa_remi) : nothing
-    pam_t = simular_hemodinamica(simular_pk(pk, tp), pam, fc, idade; cr, subpassos = 1).pam
+    h = simular_circulacao(simular_pk(pk, tp), cr, idade, wk; pam0 = pam, fc0 = fc)
     bis = simular_bis(pk, tp, idade, peso).bis
-    return (pam = pam_t[antes + 1:end], bis = bis[antes + 1:end])
+    fica = antes + 1:length(tp)
+    return (pam = h.pam[fica], pas = h.pas[fica], pad = h.pad[fica], bis = bis[fica])
+end
+
+# Onda de pressão do paciente típico nos instantes `momentos` (s; 0 = início do propofol).
+function ondas_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_remi, antes_s; wk, momentos)
+    com_remi = taxa_remi !== nothing
+    antes = com_remi ? antes_s : 0
+    pk = parametros_eleveld(idade, peso, altura, sexo; opioide = com_remi)
+    tp = vcat(zeros(antes), taxa)
+    cr = com_remi ? simular_pk(parametros_minto(idade, peso, altura, sexo), taxa_remi) : nothing
+    ondas = onda_de_pressao(simular_pk(pk, tp), cr, idade, wk; pam0 = pam, fc0 = fc,
+                            momentos = [max(m + antes, 0.0) for m in momentos])
+    return [merge(o, (t = o.t - antes,)) for o in ondas]
 end
 
 # Uma linha das tabelas de pressão × dose: PAM mínima, quando, queda, segundos abaixo
@@ -158,7 +192,7 @@ function linha_tipico(valor, total, r, pam; limiares = LIMIARES)
 end
 
 """
-    risco_por_dose(valores; idade, peso, altura, sexo, pam, fc, modo = "dose",
+    risco_por_dose(valores; idade, peso, altura, sexo, pas, pad, pam, fc, dc = nothing, modo = "dose",
                    duracao_bolus_s = 30, manutencao_mgkgh = 0, remi_ugkgmin = 0, remi_antes_s = 540,
                    duracao_s = 1200, limiares = LIMIARES)
 
@@ -170,19 +204,20 @@ só por valor: é rápida e permite varrer muitas doses de uma vez.
 Devolve, para cada valor: `valor`, `total` (mg de propofol), `pam_min` (mmHg),
 `t_min` (s), `queda_pct`, `s_abaixo_65` e `s_abaixo_55` (s), `risco` e `bis_min`.
 """
-function risco_por_dose(valores; idade, peso, altura, sexo, pam, fc, modo = "dose",
+function risco_por_dose(valores; idade, peso, altura, sexo, pas, pad, pam, fc, dc = nothing, modo = "dose",
                         duracao_bolus_s = 30, manutencao_mgkgh = 0, remi_ugkgmin = 0, remi_antes_s = 540,
                         duracao_s = 1200, limiares = LIMIARES)
     taxa_r = taxa_remi_ou_nada(peso, remi_ugkgmin, remi_antes_s, duracao_s)
+    wk = parametrizar_windkessel(; pam, pad, fc, dc, peso, altura)
     map(valores) do v
         taxa = taxa_infusao(idade, peso, altura, sexo; dose_mgkg = modo == "alvo" ? nothing : v, duracao_bolus_s,
                             manutencao_mgkgh, alvo_ugml = modo == "alvo" ? v : nothing, duracao_s, opioide = taxa_r !== nothing)
-        linha_tipico(v, sum(taxa), simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s), pam; limiares)
+        linha_tipico(v, sum(taxa), simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s; wk), pam; limiares)
     end
 end
 
 """
-    risco_por_remi(valores; idade, peso, altura, sexo, pam, fc, modo = "dose", dose_mgkg = nothing,
+    risco_por_remi(valores; idade, peso, altura, sexo, pas, pad, pam, fc, dc = nothing, dose_mgkg = nothing,
                    alvo_ugml = nothing, duracao_bolus_s = 30, manutencao_mgkgh = 0, remi_antes_s = 540,
                    duracao_s = 1200, limiares = LIMIARES)
 
@@ -191,13 +226,14 @@ Gráfico pressão × dose de REMIFENTANIL, com o propofol fixo (`dose_mgkg` ou
 `valores` (µg/kg/min). Devolve as mesmas colunas de `risco_por_dose`, com `total`
 em µg de remifentanil.
 """
-function risco_por_remi(valores; idade, peso, altura, sexo, pam, fc, dose_mgkg = nothing, alvo_ugml = nothing,
+function risco_por_remi(valores; idade, peso, altura, sexo, pas, pad, pam, fc, dc = nothing, dose_mgkg = nothing, alvo_ugml = nothing,
                         duracao_bolus_s = 30, manutencao_mgkgh = 0, remi_antes_s = 540, duracao_s = 1200, limiares = LIMIARES)
+    wk = parametrizar_windkessel(; pam, pad, fc, dc, peso, altura)
     map(valores) do v
         taxa_r = taxa_remi_ou_nada(peso, v, remi_antes_s, duracao_s)
         taxa = taxa_infusao(idade, peso, altura, sexo; dose_mgkg, duracao_bolus_s, manutencao_mgkgh, alvo_ugml,
                             duracao_s, opioide = taxa_r !== nothing)
         total = taxa_r === nothing ? 0.0 : sum(taxa_r)
-        linha_tipico(v, total, simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s), pam; limiares)
+        linha_tipico(v, total, simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s; wk), pam; limiares)
     end
 end
