@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Como o modelo funciona</title>
+<style>
+:root {
+  --bg: #f4f4f0; --surface: #fcfcfb; --surface-2: #efeee9; --border: rgba(11,11,11,.10);
+  --ink: #141413; --ink-2: #4f4e4a; --muted: #85847e; --accent: #2a78d6; --accent-2: #e8f0fb;
+  --sono: #7b61d1; --remi: #d9612a; --good: #0c8a0c; --warn: #b87d00; --crit: #c33232;
+  --code: #f0efea; --eq: #f6f5f1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #23231f; --border: rgba(255,255,255,.10);
+    --ink: #efeee9; --ink-2: #c4c3bb; --muted: #8b8a84; --accent: #5b9df0; --accent-2: #1b2a3e;
+    --sono: #9d87ee; --remi: #ee8452; --good: #4bc24b; --warn: #f0b429; --crit: #ec6b6b;
+    --code: #24241f; --eq: #1f1f1c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f0f0e; --surface: #1a1a19; --surface-2: #23231f; --border: rgba(255,255,255,.10);
+  --ink: #efeee9; --ink-2: #c4c3bb; --muted: #8b8a84; --accent: #5b9df0; --accent-2: #1b2a3e;
+  --sono: #9d87ee; --remi: #ee8452; --good: #4bc24b; --warn: #f0b429; --crit: #ec6b6b;
+  --code: #24241f; --eq: #1f1f1c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; gap: 32px; padding: 24px 16px 80px; }
+nav.toc { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow: auto; font-size: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 14px; }
+nav.toc b { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+nav.toc a { display: block; color: var(--ink-2); text-decoration: none; padding: 3px 6px; border-radius: 6px; }
+nav.toc a:hover { background: var(--surface-2); color: var(--ink); }
+nav.toc a.sub { padding-left: 18px; font-size: 13px; color: var(--muted); }
+main { min-width: 0; }
+header.capa { background: linear-gradient(135deg, #0e2138, #16375c); color: #f3f6fa; border-radius: 18px; padding: 32px 32px 28px; margin-bottom: 28px; }
+header.capa h1 { margin: 0 0 6px; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; }
+header.capa p { margin: 0; color: rgba(243,246,250,.78); max-width: 760px; }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; margin-bottom: 22px; }
+h2 { font-size: 24px; margin: 0 0 12px; line-height: 1.25; }
+h2 .n { color: var(--muted); font-weight: 500; font-size: 16px; margin-right: 8px; font-variant-numeric: tabular-nums; }
+h3 { font-size: 18px; margin: 26px 0 8px; }
+h4 { font-size: 15.5px; margin: 18px 0 6px; color: var(--ink-2); }
+p, li { color: var(--ink); }
+.ink2 { color: var(--ink-2); }
+a { color: var(--accent); overflow-wrap: anywhere; }
+code, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--code); padding: 1px 5px; border-radius: 5px; }
+pre { background: var(--code); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
+pre code { background: none; padding: 0; }
+.eq { background: var(--eq); border-left: 3px solid var(--accent); border-radius: 8px; padding: 10px 16px; margin: 10px 0;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif; font-size: 17px; overflow-x: auto; white-space: nowrap; }
+.eq .c { font-family: system-ui, sans-serif; font-size: 13px; color: var(--muted); margin-left: 14px; white-space: normal; }
+.eq div + div { margin-top: 4px; }
+var { font-style: italic; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 14.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl { overflow-x: auto; }
+.nota { background: var(--accent-2); border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 15px; }
+.aviso { background: rgba(184,125,0,.12); border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 15px; }
+.chip { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.chip.b { background: rgba(12,138,12,.14); color: var(--good); } .chip.m { background: rgba(184,125,0,.16); color: var(--warn); } .chip.a { background: rgba(195,50,50,.14); color: var(--crit); }
+.sw { display: inline-block; width: 14px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card-mini { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+.card-mini b { display: block; margin-bottom: 4px; }
+figure { margin: 14px 0; }
+figure svg { width: 100%; height: auto; display: block; }
+figcaption { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
+.tema { position: fixed; right: 16px; bottom: 16px; background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 999px; padding: 8px 14px; cursor: pointer; font: inherit; font-size: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.toc { position: static; max-height: none; }
+  .grid2 { grid-template-columns: 1fr; }
+  section { padding: 18px 16px; }
+  header.capa { padding: 24px 18px; }
+}
+@media print { nav.toc, .tema { display: none; } .layout { grid-template-columns: 1fr; } section { break-inside: avoid-page; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Sumário">
+  <b>Sumário</b>
+  <a href="#visao">1 · Visão geral</a>
+  <a href="#convencoes">2 · Tempo, unidades e sinais</a>
+  <a href="#entradas">3 · Entradas</a>
+  <a href="#pk-propofol">4 · Propofol: farmacocinética</a>
+  <a href="#tci">5 · Concentração-alvo (TCI)</a>
+  <a href="#pk-remi">6 · Remifentanil: farmacocinética</a>
+  <a href="#su">7 · Circulação: modelo de Su</a>
+  <a class="sub" href="#su-estado">Estado e valores aparentes</a>
+  <a class="sub" href="#su-efeitos">Efeitos dos fármacos</a>
+  <a class="sub" href="#su-equacoes">Equações</a>
+  <a class="sub" href="#su-param">Parâmetros</a>
+  <a class="sub" href="#su-num">Integração numérica</a>
+  <a href="#bis">8 · Sono: BIS</a>
+  <a href="#pop">9 · Pacientes virtuais</a>
+  <a href="#faixas">10 · Faixas, risco e períodos</a>
+  <a href="#metricas">11 · Números do resumo</a>
+  <a href="#pdose">12 · Pressão por dose</a>
+  <a href="#saidas">13 · O que o software devolve</a>
+  <a href="#plataforma">14 · A plataforma, parte por parte</a>
+  <a class="sub" href="#pl-form">Formulário</a>
+  <a class="sub" href="#pl-risco">Cartão de risco e números</a>
+  <a class="sub" href="#pl-cartoes">Cartões 01 a 08</a>
+  <a class="sub" href="#pl-outros">Rodapé, tema e erros</a>
+  <a href="#codigo">15 · O código, arquivo por arquivo</a>
+  <a href="#testes">16 · Testes e validação</a>
+  <a href="#exemplo">17 · Exemplo completo</a>
+  <a href="#limites">18 · Limitações e pendências</a>
+  <a href="#refs">19 · Referências</a>
+</nav>
+
+<main>
+<header class="capa">
+  <h1>Como o modelo funciona</h1>
+  <p>PropofolWK: previsão da pressão arterial e do sono na indução anestésica com propofol e remifentanil.
+  Este documento explica tudo: a matemática, de onde vem cada valor, o que o software devolve, cada parte
+  da plataforma e o código.</p>
+</header>
+
+<!-- ===================================================================== 1 -->
+<section id="visao">
+<h2><span class="n">1</span>Visão geral</h2>
+<p>O médico informa o paciente (idade, sexo, peso, altura, PAM e FC antes de qualquer fármaco) e o protocolo
+(propofol por dose ou por concentração-alvo e, se quiser, uma infusão de remifentanil). O software calcula,
+segundo a segundo, nos 20 minutos depois do início do propofol:</p>
+<ul>
+  <li>a <b>concentração de propofol</b> e de <b>remifentanil</b> no sangue (farmacocinética);</li>
+  <li>a <b>pressão arterial média (PAM)</b>, a <b>frequência cardíaca (FC)</b>, a resistência periférica e o volume sistólico (modelo de Su);</li>
+  <li>o <b>BIS</b>, que indica se o paciente está dormindo (modelo de Eleveld);</li>
+</ul>
+<p>Isso é feito para <b>500 pacientes virtuais</b>: 500 versões do mesmo paciente, cada uma com os parâmetros sorteados
+dentro da variabilidade entre pessoas publicada nos artigos. Com as 500 curvas, o software monta <b>faixas</b>
+(onde ficam 9 em cada 10 pacientes e onde fica metade deles) e diz <b>em que períodos</b> a pressão entra em risco de hipotensão.</p>
+
+<figure>
+<svg viewBox="0 0 900 300" role="img" aria-label="Fluxo do modelo: infusões, farmacocinética, concentrações, efeitos e saídas">
+  <defs><marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+  <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor" style="color: var(--ink)">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55" marker-end="url(#seta)">
+      <path d="M150 70 H205"/><path d="M150 250 H205"/>
+      <path d="M355 70 H410"/><path d="M355 250 H410"/>
+      <path d="M520 70 C560 70 560 140 600 150"/><path d="M520 250 C560 250 560 170 600 162"/>
+      <path d="M355 70 C380 70 380 26 420 26 H693"/>
+      <path d="M750 156 H790"/>
+    </g>
+    <rect x="10" y="40" width="140" height="60" rx="10" fill="var(--accent-2)" stroke="var(--accent)"/>
+    <text x="80" y="66" text-anchor="middle" font-weight="600">Propofol</text><text x="80" y="84" text-anchor="middle" font-size="12">dose ou alvo (mg/s)</text>
+    <rect x="10" y="220" width="140" height="60" rx="10" fill="var(--surface-2)" stroke="var(--remi)"/>
+    <text x="80" y="246" text-anchor="middle" font-weight="600">Remifentanil</text><text x="80" y="264" text-anchor="middle" font-size="12">infusão (µg/s)</text>
+    <rect x="210" y="40" width="145" height="60" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="282" y="66" text-anchor="middle" font-weight="600">Eleveld 2018</text><text x="282" y="84" text-anchor="middle" font-size="12">3 compartimentos</text>
+    <rect x="210" y="220" width="145" height="60" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="282" y="246" text-anchor="middle" font-weight="600">Minto 1997</text><text x="282" y="264" text-anchor="middle" font-size="12">3 compartimentos</text>
+    <rect x="415" y="40" width="105" height="60" rx="10" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="467" y="66" text-anchor="middle" font-weight="600">Cp</text><text x="467" y="84" text-anchor="middle" font-size="12">µg/ml</text>
+    <rect x="415" y="220" width="105" height="60" rx="10" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="467" y="246" text-anchor="middle" font-weight="600">Cr</text><text x="467" y="264" text-anchor="middle" font-size="12">ng/ml</text>
+    <rect x="605" y="120" width="145" height="72" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="677" y="146" text-anchor="middle" font-weight="600">Su 2023</text><text x="677" y="164" text-anchor="middle" font-size="12">RPT, VS, FC e feedback</text><text x="677" y="180" text-anchor="middle" font-size="12">da PAM</text>
+    <rect x="795" y="126" width="95" height="60" rx="10" fill="var(--accent-2)" stroke="var(--accent)"/>
+    <text x="842" y="152" text-anchor="middle" font-weight="600">PAM, FC</text><text x="842" y="170" text-anchor="middle" font-size="12">mmHg, bpm</text>
+    <rect x="698" y="6" width="192" height="40" rx="10" fill="var(--surface-2)" stroke="var(--sono)"/>
+    <text x="794" y="31" text-anchor="middle" font-weight="600">Ce → BIS (Eleveld 2018)</text>
+    <text x="560" y="17" text-anchor="middle" font-size="12" fill="var(--muted)">Propofol no cérebro (sítio efetor)</text>
+  </g>
+</svg>
+<figcaption>Fluxo do cálculo para um paciente virtual. O remifentanil age na circulação (no modelo de Su) e muda a farmacocinética
+do propofol (termos de opioide do Eleveld), mas não entra no BIS.</figcaption>
+</figure>
+
+<div class="nota"><b>Princípio do projeto:</b> só entram estruturas e valores publicados e verificados. Cada valor tem a sua fonte
+(artigo e linha do código de referência, o Python Anesthesia Simulator, PAS). O que ainda não tem base fica fora, e cada decisão está em
+<code>docs/decisoes.md</code>.</div>
+</section>
+
+<!-- ===================================================================== 2 -->
+<section id="convencoes">
+<h2><span class="n">2</span>Tempo, unidades e sinais</h2>
+<ul>
+  <li><b>Tempo em segundos.</b> Todas as contas avançam de 1 em 1 s. <b>t = 0 é o início do propofol.</b> A simulação vai até 1200 s (20 min).</li>
+  <li>O <b>remifentanil começa antes</b>: se o médico diz "9 min antes", a conta começa em t = −540 s, só com remifentanil, e os gráficos mostram de 0 s em diante.</li>
+  <li><b>Propofol:</b> dose em mg, taxa em mg/s, volumes em L, concentração em mg/L = <b>µg/ml</b>.</li>
+  <li><b>Remifentanil:</b> dose em µg, taxa em µg/s, volumes em L, concentração em µg/L = <b>ng/ml</b>.</li>
+  <li><b>Pressões em mmHg</b>, FC em bpm. RPT e VS aparecem como fração (ou %) do valor basal.</li>
+  <li>Siglas: PAM (pressão arterial média), FC (frequência cardíaca), RPT (resistência periférica total), VS (volume sistólico),
+  Cp (concentração plasmática do propofol), Cr (concentração plasmática do remifentanil), Ce (concentração do propofol no cérebro),
+  BIS (índice bispectral, de 0 a 100).</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 3 -->
+<section id="entradas">
+<h2><span class="n">3</span>Entradas</h2>
+<div class="tbl"><table>
+<tr><th>Campo</th><th>Unidade</th><th>Como entra no modelo</th></tr>
+<tr><td>Idade, sexo, peso, altura</td><td>anos, M/F, kg, cm</td><td>Farmacocinéticas (Eleveld e Minto), efeito do propofol no VS (idade), BIS (idade e peso).</td></tr>
+<tr><td>PAM e FC</td><td>mmHg, bpm</td><td>Valores basais do modelo de Su: as curvas previstas são essas multiplicadas pelas frações calculadas. Devem ser medidas <b>antes de qualquer fármaco</b> (antes do remifentanil).</td></tr>
+<tr><td>Propofol: dose</td><td>mg/kg</td><td>Bolus de <var>dose</var> × <var>peso</var> mg, em velocidade constante durante o tempo de injeção.</td></tr>
+<tr><td>Tempo de injeção</td><td>s (10, 20, 30, 60 ou 120)</td><td>Duração do bolus.</td></tr>
+<tr><td>Manutenção</td><td>µg/kg/min</td><td>Infusão contínua depois do bolus. Convertida para mg/kg/h (× 60 ÷ 1000) e depois para mg/s (× peso ÷ 3600).</td></tr>
+<tr><td>Propofol: concentração-alvo</td><td>µg/ml</td><td>Alvo no plasma; a taxa é calculada como numa bomba de TCI (seção 5).</td></tr>
+<tr><td>Remifentanil</td><td>µg/kg/min</td><td>Infusão contínua: <var>taxa</var> × <var>peso</var> ÷ 60 µg/s. 0 = sem remifentanil.</td></tr>
+<tr><td>Começa antes do propofol</td><td>min</td><td>Convertido para segundos (× 60): o remifentanil começa nesse tempo antes de t = 0.</td></tr>
+</table></div>
+<p class="ink2">Os valores iniciais do remifentanil na plataforma (0,12 µg/kg/min, 9 min antes) são as medianas das 21 induções do VitalDB
+selecionadas no PBL_6 (seção 6). A plataforma aceita vírgula ou ponto nos números.</p>
+</section>
+
+<!-- ===================================================================== 4 -->
+<section id="pk-propofol">
+<h2><span class="n">4</span>Propofol: farmacocinética (Eleveld 2018)</h2>
+<p>A farmacocinética diz como a dose vira concentração no sangue. O modelo tem <b>3 compartimentos</b>: o sangue (V1), um compartimento
+rápido, como o músculo (V2), e um lento, como a gordura (V3). O fígado elimina o propofol do sangue (depuração CL), e o sangue troca
+propofol com os outros dois (Q2 e Q3). Usamos a concentração <b>arterial</b>, como o padrão do PAS.</p>
+
+<h3>Parâmetros do paciente</h3>
+<p>Funções auxiliares, com <var>IPM</var> = idade + 40/52 (idade pós-menstrual em anos, nascido a termo) e <var>IMC</var> = peso ÷ (altura/100)²:</p>
+<div class="eq"><div>sig(<var>x</var>; <var>C</var><sub>50</sub>, <var>γ</var>) = <var>x</var><sup>γ</sup> ⁄ (<var>C</var><sub>50</sub><sup>γ</sup> + <var>x</var><sup>γ</sup>)</div></div>
+<div class="eq">
+<div>Massa magra (Al-Sallami), homem: (0,88 + 0,12 ⁄ (1 + (idade/13,4)<sup>−12,7</sup>)) · 9270·peso ⁄ (6680 + 216·IMC)</div>
+<div>Massa magra (Al-Sallami), mulher: (1,11 − 0,11 ⁄ (1 + (idade/7,1)<sup>−1,1</sup>)) · 9270·peso ⁄ (8780 + 244·IMC)</div>
+</div>
+<div class="eq">
+<div>V1 = θ<sub>1</sub> · sig(peso; θ<sub>12</sub>, 1) ⁄ sig(70; θ<sub>12</sub>, 1)</div>
+<div>V2 = θ<sub>2</sub> · (peso/70) · e<sup>θ<sub>10</sub>(idade − 35)</sup></div>
+<div>V3 = θ<sub>3</sub> · (massa magra ⁄ massa magra de referência) · f<sub>opi</sub>(θ<sub>13</sub>)</div>
+<div>CL = θ<sub>4</sub> (homem) ou θ<sub>15</sub> (mulher) · (peso/70)<sup>0,75</sup> · f<sub>mat,CL</sub> · f<sub>opi</sub>(θ<sub>11</sub>)</div>
+<div>Q2 = θ<sub>5</sub> · (V2/θ<sub>2</sub>)<sup>0,75</sup> · (1 + θ<sub>16</sub>·(1 − sig(52·IPM; θ<sub>14</sub>, 1)))</div>
+<div>Q3 = θ<sub>6</sub> · (V3/θ<sub>3</sub>)<sup>0,75</sup> · f<sub>mat,Q3</sub></div>
+</div>
+<p>Maturação (≈ 1 em adultos, mas mantida para seguir o artigo): f<sub>mat,CL</sub> = sig(52·IPM; θ<sub>8</sub>, θ<sub>9</sub>) ⁄ sig(52·IPM<sub>ref</sub>; θ<sub>8</sub>, θ<sub>9</sub>);
+f<sub>mat,Q3</sub> = sig(52·IPM; θ<sub>14</sub>, 1) ⁄ sig(52·IPM<sub>ref</sub>; θ<sub>14</sub>, 1). Referência: homem, 35 anos, 70 kg, 170 cm.</p>
+<p><b>Opioide junto:</b> f<sub>opi</sub>(θ) = e<sup>θ·idade</sup> quando há remifentanil e 1 quando não há. Com opioide, V3 e CL ficam menores
+com a idade (θ<sub>11</sub> e θ<sub>13</sub> negativos). Por isso o propofol se comporta um pouco diferente quando o remifentanil é maior que zero.</p>
+
+<div class="tbl"><table>
+<tr><th>θ</th><th>Significado</th><th class="num">Valor</th><th>PAS (pk_models.py)</th></tr>
+<tr><td>θ1</td><td>V1 de referência (L)</td><td class="num">6,2831</td><td>L270</td></tr>
+<tr><td>θ2</td><td>V2 de referência (L)</td><td class="num">25,5013</td><td>L271</td></tr>
+<tr><td>θ3</td><td>V3 de referência (L)</td><td class="num">272,8167</td><td>L272</td></tr>
+<tr><td>θ4</td><td>Depuração de referência, homem (L/min)</td><td class="num">1,7896</td><td>L273</td></tr>
+<tr><td>θ5</td><td>Q2 de referência (L/min)</td><td class="num">1,7501</td><td>L274</td></tr>
+<tr><td>θ6</td><td>Q3 de referência (L/min)</td><td class="num">1,1085</td><td>L275</td></tr>
+<tr><td>θ8</td><td>Maturação da depuração: idade pós-menstrual com 50% (semanas)</td><td class="num">42,2760</td><td>L277</td></tr>
+<tr><td>θ9</td><td>Inclinação dessa maturação</td><td class="num">9,0548</td><td>L278</td></tr>
+<tr><td>θ10</td><td>V2 menor com a idade (por ano)</td><td class="num">−0,015633</td><td>L279</td></tr>
+<tr><td>θ11</td><td>Depuração menor com a idade, com opioide</td><td class="num">−0,00285709</td><td>L280</td></tr>
+<tr><td>θ12</td><td>Peso com 50% do V1 máximo (kg)</td><td class="num">33,5531</td><td>L281</td></tr>
+<tr><td>θ13</td><td>V3 menor com a idade, com opioide</td><td class="num">−0,0138166</td><td>L282</td></tr>
+<tr><td>θ14</td><td>Maturação de Q3 (semanas)</td><td class="num">68,2768</td><td>L283</td></tr>
+<tr><td>θ15</td><td>Depuração de referência, mulher (L/min)</td><td class="num">2,1002</td><td>L284</td></tr>
+<tr><td>θ16</td><td>Q2 maior enquanto Q3 amadurece</td><td class="num">1,3043</td><td>L285</td></tr>
+</table></div>
+<p class="ink2">Ficam de fora θ7 (erro residual do ajuste) e θ17 e θ18 (sangue venoso).</p>
+
+<h3>Equações e solução exata</h3>
+<p>Com <var>C</var><sub>1</sub>, <var>C</var><sub>2</sub>, <var>C</var><sub>3</sub> as concentrações nos três compartimentos e as taxas
+<var>k</var><sub>10</sub> = CL/V1, <var>k</var><sub>12</sub> = Q2/V1, <var>k</var><sub>13</sub> = Q3/V1, <var>k</var><sub>21</sub> = Q2/V2,
+<var>k</var><sub>31</sub> = Q3/V3 (em 1/min, divididas por 60 para 1/s):</p>
+<div class="eq">
+<div>dC<sub>1</sub>/dt = −(k<sub>10</sub> + k<sub>12</sub> + k<sub>13</sub>)·C<sub>1</sub> + k<sub>12</sub>·C<sub>2</sub> + k<sub>13</sub>·C<sub>3</sub> + u(t)/V1</div>
+<div>dC<sub>2</sub>/dt = k<sub>21</sub>·(C<sub>1</sub> − C<sub>2</sub>) &nbsp;&nbsp;&nbsp; dC<sub>3</sub>/dt = k<sub>31</sub>·(C<sub>1</sub> − C<sub>3</sub>)</div>
+</div>
+<p>Em forma de matriz, d<b>x</b>/dt = <b>A</b>·<b>x</b> + <b>B</b>·u. Como a taxa <var>u</var> é constante dentro de cada segundo, a solução é
+<b>exata</b> (sem erro de integração), como no PAS (L630–L664):</p>
+<div class="eq"><div><b>x</b>(t + Δt) = Φ·<b>x</b>(t) + Γ·u(t), &nbsp; Φ = e<sup><b>A</b>Δt</sup>, &nbsp; Γ = <b>A</b><sup>−1</sup>(Φ − I)·<b>B</b> <span class="c">Δt = 1 s; Cp = C<sub>1</sub></span></div></div>
+<p>Exemplo (mulher, 62 anos, 72 kg, 160 cm): sem opioide, V1 = 6,34 L, V2 = 17,2 L, V3 = 215,7 L, CL = 2,15 L/min, Q2 = 1,34 L/min, Q3 = 0,94 L/min.
+Com remifentanil, V3 = 91,6 L, CL = 1,80 L/min e Q3 = 0,50 L/min.</p>
+</section>
+
+<!-- ===================================================================== 5 -->
+<section id="tci">
+<h2><span class="n">5</span>Concentração-alvo (TCI no plasma)</h2>
+<p>Quando o médico escolhe uma concentração-alvo de propofol, o software faz o que uma bomba de TCI faz: a cada segundo, calcula a
+taxa que leva a Cp exatamente ao alvo no segundo seguinte, usando a farmacocinética do <b>paciente típico</b>.</p>
+<div class="eq"><div>u<sub>k</sub> = limite<sub>[0, u<sub>máx</sub>]</sub> ( (C<sub>alvo</sub> − (Φ·<b>x</b><sub>k</sub>)<sub>1</sub>) ⁄ Γ<sub>1</sub> )</div></div>
+<ul>
+<li>(Φ·<b>x</b><sub>k</sub>)<sub>1</sub> é a Cp que haveria sem infusão; cada mg/s a mais soma Γ<sub>1</sub> µg/ml.</li>
+<li>A taxa nunca é negativa: se a Cp estiver acima do alvo, a bomba para. Sem limite de velocidade por padrão (<var>u</var><sub>máx</sub> = ∞), porque o limite depende do equipamento.</li>
+<li>O alvo é no <b>plasma</b>, não no cérebro, porque o modelo de Su usa a Cp.</li>
+<li>Cada paciente virtual recebe essa mesma taxa e, por ter outra farmacocinética, chega a uma Cp diferente do alvo, como na vida real.</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 6 -->
+<section id="pk-remi">
+<h2><span class="n">6</span>Remifentanil: farmacocinética (Minto 1997)</h2>
+<p>Mesmo tipo de modelo do propofol (3 compartimentos, mesma conta exata), com os parâmetros de Minto. Eles dependem da idade e da
+massa magra de James:</p>
+<div class="eq">
+<div>Massa magra (James): homem 1,1·peso − 128·(peso/altura)²; mulher 1,07·peso − 148·(peso/altura)²</div>
+<div>Δidade = idade − 40 &nbsp;&nbsp; Δmagra = massa magra − 55</div>
+</div>
+<div class="eq">
+<div>V1 = 5,1 − 0,0201·Δidade + 0,072·Δmagra &nbsp;&nbsp; (L)</div>
+<div>V2 = 9,82 − 0,0811·Δidade + 0,108·Δmagra &nbsp;&nbsp; (L)</div>
+<div>V3 = 5,42 &nbsp;&nbsp; (L)</div>
+<div>CL = 2,6 − 0,0162·Δidade + 0,0191·Δmagra &nbsp;&nbsp; (L/min)</div>
+<div>Q2 = 2,05 − 0,0301·Δidade &nbsp;&nbsp; (L/min)</div>
+<div>Q3 = 0,076 − 0,00113·Δidade &nbsp;&nbsp; (L/min)</div>
+</div>
+<p class="ink2">Fonte: Minto 1997; PAS <code>pk_models.py</code> L357–L371; o mesmo modelo do <code>src/remifentanil.jl</code> da Beatriz no PBL_6.
+Exemplo (mulher, 62 anos, 72 kg, 160 cm; massa magra 47,1 kg): V1 = 4,09 L, V2 = 7,18 L, V3 = 5,42 L, CL = 2,09 L/min, Q2 = 1,39 L/min, Q3 = 0,051 L/min.</p>
+
+<h3>Por que Minto: os dados do VitalDB</h3>
+<p>Nas 21 induções do VitalDB selecionadas no PBL_6, o remifentanil foi dado por bombas de TCI (Orchestra, seringa de 20 µg/ml).
+A bomba registra a taxa (<code>RFTN20_RATE</code>) e a concentração que ela mesma calcula (<code>RFTN20_CP</code>). Calculando a Cp de Minto
+a partir da taxa registrada, a diferença para a Cp da bomba foi de <b>0,97%</b> (mediana; de 0,21% a 4,0% entre os casos). Ou seja, o
+Minto reproduz o que a bomba mostrou. Script: <code>scripts/remifentanil_vitaldb.py</code>; tabela: <code>dados/remifentanil_vitaldb.csv</code>.</p>
+<div class="tbl"><table>
+<tr><th>Nas 21 induções (VitalDB, coorte do PBL_6)</th><th class="num">Mediana</th><th class="num">Mínimo</th><th class="num">Máximo</th></tr>
+<tr><td>Início do remifentanil em relação ao propofol</td><td class="num">−535 s</td><td class="num">−4182 s</td><td class="num">−41 s</td></tr>
+<tr><td>Taxa média nos 5 min após o início do propofol</td><td class="num">0,113 µg/kg/min</td><td class="num">0</td><td class="num">0,401</td></tr>
+<tr><td>Taxa média nos 20 min após o início do propofol</td><td class="num">0,118 µg/kg/min</td><td class="num">0,031</td><td class="num">0,458</td></tr>
+<tr><td>Cr de Minto no início do propofol</td><td class="num">3,3 ng/ml</td><td class="num">0,48</td><td class="num">10,6</td></tr>
+<tr><td>Diferença Minto × bomba</td><td class="num">0,97%</td><td class="num">0,21%</td><td class="num">4,0%</td></tr>
+</table></div>
+<p>Daí vêm os valores iniciais da plataforma: <b>0,12 µg/kg/min, começando 9 min antes</b> do propofol. No paciente de exemplo, isso dá
+Cr = 3,25 ng/ml no início do propofol, perto da mediana do VitalDB (3,3).</p>
+<p><b>Infusão do remifentanil no modelo:</b> taxa constante de <var>taxa</var> × peso ÷ 60 µg/s, de −(início) até 1200 s.</p>
+</section>
+
+<!-- ===================================================================== 7 -->
+<section id="su">
+<h2><span class="n">7</span>Circulação: modelo de Su (2023)</h2>
+<p>O modelo de Su descreve a pressão como produto de três coisas: <b>PAM = RPT × VS × FC</b>. Cada uma é "produzida" e "removida" o tempo
+todo (modelo de renovação, <i>turnover</i>). O propofol e o remifentanil mudam essas taxas, e a própria PAM volta como
+<b>feedback</b> (o barorreflexo): quando a pressão cai, a produção aumenta e puxa a PAM de volta. Os valores foram estimados em
+voluntários saudáveis que receberam propofol e remifentanil.</p>
+
+<h3 id="su-estado">Estado e valores aparentes</h3>
+<p>Tudo é calculado como <b>fração do basal</b> (1 = basal). Assim a PAM e a FC previstas não dependem do volume sistólico basal, que não
+se mede na rotina. O estado tem 5 variáveis:</p>
+<div class="tbl"><table>
+<tr><th>Variável</th><th>O que é</th><th class="num">Início</th></tr>
+<tr><td>y<sub>1</sub></td><td>RPT</td><td class="num">1</td></tr>
+<tr><td>y<sub>2</sub></td><td>VS, sem o termo dependente do tempo</td><td class="num">1</td></tr>
+<tr><td>y<sub>3</sub></td><td>FC, sem o termo dependente do tempo</td><td class="num">1</td></tr>
+<tr><td>y<sub>4</sub></td><td>Termo dependente do tempo do VS</td><td class="num">0,0899</td></tr>
+<tr><td>y<sub>5</sub></td><td>Termo dependente do tempo da FC</td><td class="num">0,121</td></tr>
+</table></div>
+<p>Os valores "aparentes" (os que seriam medidos), como fração do basal medido (PAS L1166–L1171):</p>
+<div class="eq">
+<div>FC<sub>ap</sub> = (y<sub>3</sub> + y<sub>5</sub>) ⁄ (1 + 0,121)</div>
+<div>VS<sub>ap</sub> = (y<sub>2</sub> + y<sub>4</sub>) · (1 − α·ln FC<sub>ap</sub>) ⁄ (1 + 0,0899) <span class="c">α = 0,312: FC mais alta enche menos o coração</span></div>
+<div>RPT<sub>ap</sub> = y<sub>1</sub> &nbsp;&nbsp;&nbsp; PAM<sub>ap</sub> = RPT<sub>ap</sub> · VS<sub>ap</sub> · FC<sub>ap</sub></div>
+<div>PAM(t) = PAM<sub>basal</sub> · PAM<sub>ap</sub> &nbsp;&nbsp;&nbsp; FC(t) = FC<sub>basal</sub> · FC<sub>ap</sub></div>
+</div>
+
+<h3 id="su-efeitos">Efeitos dos fármacos</h3>
+<p>Com sig(<var>x</var>; <var>C</var><sub>50</sub>, <var>γ</var>) a curva sigmoide da seção 4, Cp em µg/ml e Cr em ng/ml. Cada efeito é limitado
+a ±0,999 (PAS L1157–L1161), para nenhuma taxa ficar negativa.</p>
+<div class="eq">
+<div>E<sub>RPT</sub><sup>P</sup> = (E<sub>máx,RPT</sub> + int<sub>RPT</sub>·sig(Cr; C50<sub>R,RPT</sub>, 1)) · sig(Cp; C50<sub>RPT</sub>, γ<sub>RPT</sub>) <span class="c">propofol na RPT; o remi reduz esse efeito</span></div>
+<div>E<sub>VS</sub><sup>P</sup> = E<sub>máx,VS</sub>(idade) · sig(Cp; C50<sub>VS</sub>, 1), &nbsp; E<sub>máx,VS</sub>(idade) = −0,154·e<sup>0,0333(idade − 35)</sup> <span class="c">propofol no VS</span></div>
+<div>E<sub>RPT</sub><sup>R</sup> = E<sub>máx,R,RPT</sub> · sig(Cr; C50<sub>R,RPT</sub>, 1) <span class="c">remifentanil na RPT</span></div>
+<div>E<sub>VS</sub><sup>R</sup> = (s<sub>R,VS</sub> + int<sub>VS</sub>·sig(Cp; C50<sub>VS</sub>, 1)) · Cr <span class="c">remifentanil no VS; o propofol muda esse efeito</span></div>
+<div>E<sub>FC</sub><sup>R</sup> = (s<sub>R,FC</sub> + int<sub>FC</sub>·sig(Cp; C50<sub>int,FC</sub>, 1)) · Cr <span class="c">remifentanil na FC; o propofol muda esse efeito</span></div>
+</div>
+<p class="ink2">Leitura prática: sozinho, o remifentanil tem efeitos pequenos e positivos no VS e na FC (s<sub>R</sub> &gt; 0). Com propofol, os
+termos de interação (negativos) dominam, e os dois fármacos juntos derrubam mais a pressão. Na RPT, o remifentanil aumenta a remoção
+(E<sub>máx,R,RPT</sub> = −1) e diminui um pouco a vasodilatação do propofol (int<sub>RPT</sub> = +1).</p>
+
+<h3 id="su-equacoes">Equações</h3>
+<div class="eq">
+<div>F = PAM<sub>ap</sub><sup>fb</sup> <span class="c">feedback: fb &lt; 0, então F &gt; 1 quando a PAM cai</span></div>
+<div>dy<sub>1</sub>/dt = k<sub>out</sub> · [ F·(1 + E<sub>RPT</sub><sup>P</sup>) − y<sub>1</sub>·(1 − E<sub>RPT</sub><sup>R</sup>) ]</div>
+<div>dy<sub>2</sub>/dt = k<sub>out</sub> · [ F·(1 + E<sub>VS</sub><sup>P</sup>) − y<sub>2</sub>·(1 − E<sub>VS</sub><sup>R</sup>) ]</div>
+<div>dy<sub>3</sub>/dt = k<sub>out</sub> · [ F − y<sub>3</sub>·(1 − E<sub>FC</sub><sup>R</sup>) ]</div>
+<div>dy<sub>4</sub>/dt = −k<sub>ltde</sub>·y<sub>4</sub>, &nbsp; dy<sub>5</sub>/dt = −k<sub>ltde</sub>·y<sub>5</sub> &nbsp; (só quando Cp &gt; 0) <span class="c">o termo dependente do tempo só começa a cair quando o propofol entra (PAS L1184)</span></div>
+</div>
+<p class="ink2">PAS <code>pd_models.py</code>, <code>continuous_dynamic</code>, L1118–L1195. Como a produção e a remoção usam o mesmo k<sub>out</sub>
+e tudo está em frações do basal, sem fármaco o estado fica parado em 1.</p>
+
+<h3 id="su-param">Parâmetros (Su 2023, como estão no PAS)</h3>
+<div class="tbl"><table>
+<tr><th>Símbolo</th><th>Significado</th><th class="num">Valor</th><th>PAS (pd_models.py)</th></tr>
+<tr><td>k<sub>out</sub></td><td>Renovação de RPT, VS e FC</td><td class="num">0,072 /min</td><td>L958</td></tr>
+<tr><td>fb</td><td>Força do feedback da PAM (expoente)</td><td class="num">−0,661</td><td>L959</td></tr>
+<tr><td>α</td><td>Quanto a FC altera o VS</td><td class="num">0,312</td><td>L960</td></tr>
+<tr><td>k<sub>ltde</sub></td><td>Velocidade do efeito dependente do tempo</td><td class="num">0,067 /min</td><td>L961</td></tr>
+<tr><td>ltde<sub>VS</sub></td><td>Efeito dependente do tempo no VS</td><td class="num">0,0899</td><td>L962</td></tr>
+<tr><td>ltde<sub>FC</sub></td><td>Efeito dependente do tempo na FC</td><td class="num">0,121</td><td>L963</td></tr>
+<tr><td>C50<sub>RPT</sub></td><td>Cp com metade do efeito do propofol na RPT</td><td class="num">3,21 µg/ml</td><td>L964</td></tr>
+<tr><td>E<sub>máx,RPT</sub></td><td>Efeito máximo do propofol na RPT</td><td class="num">−0,778</td><td>L965</td></tr>
+<tr><td>γ<sub>RPT</sub></td><td>Inclinação desse efeito</td><td class="num">1,83</td><td>L966</td></tr>
+<tr><td>C50<sub>VS</sub></td><td>Cp com metade do efeito do propofol no VS</td><td class="num">0,44 µg/ml</td><td>L967</td></tr>
+<tr><td>E<sub>máx,VS</sub> (35 anos)</td><td>Efeito máximo do propofol no VS aos 35 anos</td><td class="num">−0,154</td><td>L968</td></tr>
+<tr><td>—</td><td>Aumento desse efeito por ano de idade (exponencial)</td><td class="num">0,0333</td><td>L969</td></tr>
+<tr><td>C50<sub>R,RPT</sub></td><td>Cr com metade do efeito do remifentanil na RPT</td><td class="num">4,59 ng/ml</td><td>L971</td></tr>
+<tr><td>E<sub>máx,R,RPT</sub></td><td>Efeito máximo do remifentanil na RPT</td><td class="num">−1</td><td>L972</td></tr>
+<tr><td>s<sub>R,FC</sub></td><td>Efeito do remifentanil na FC, por ng/ml</td><td class="num">0,0327</td><td>L973</td></tr>
+<tr><td>s<sub>R,VS</sub></td><td>Efeito do remifentanil no VS, por ng/ml</td><td class="num">0,0581</td><td>L974</td></tr>
+<tr><td>int<sub>FC</sub></td><td>Interação na FC</td><td class="num">−0,119</td><td>L975</td></tr>
+<tr><td>C50<sub>int,FC</sub></td><td>Cp com metade dessa interação</td><td class="num">0,20 µg/ml</td><td>L976</td></tr>
+<tr><td>int<sub>RPT</sub></td><td>Interação na RPT</td><td class="num">1</td><td>L977</td></tr>
+<tr><td>int<sub>VS</sub></td><td>Interação no VS</td><td class="num">−0,212</td><td>L978</td></tr>
+</table></div>
+<p class="ink2">No paciente de exemplo (62 anos), E<sub>máx,VS</sub> = −0,154·e<sup>0,0333·27</sup> = −0,378. O PAS declara <code>age_max_sv = 0.033</code>,
+mas a conta usa 0,0333; usamos 0,0333 (pendente de conferir no artigo).</p>
+
+<h3 id="su-num">Integração numérica</h3>
+<ul>
+<li><b>Runge-Kutta de 4ª ordem</b>, um passo por segundo, com Cp e Cr fixas no passo, iguais à <b>média</b> entre o início e o fim do segundo (como o PAS, L1262).</li>
+<li>Nas contas com muitos pacientes, 1 subpasso por segundo. Com 10 subpassos, o resultado muda menos de 10<sup>−11</sup> mmHg; com 1, a conta é 10 vezes mais rápida.</li>
+<li>Verificação: com propofol e remifentanil juntos, a PAM e a FC são iguais às do PAS (diferença &lt; 10<sup>−12</sup>; seção 16).</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 8 -->
+<section id="bis">
+<h2><span class="n">8</span>Sono: BIS (Eleveld 2018)</h2>
+<p>O BIS vai de 0 a 100: perto de 93 acordado; de 40 a 60 é a faixa-alvo da anestesia geral. Aqui, <b>dormindo = BIS abaixo de 60</b>
+(NICE, <i>Depth of anaesthesia monitors</i>, DG6).</p>
+<h3>Propofol no cérebro (sítio efetor)</h3>
+<p>O cérebro é um 4º compartimento que recebe propofol do sangue, sem mudar a concentração do sangue:</p>
+<div class="eq">
+<div>dCe/dt = k<sub>e0</sub>·(Cp − Ce), &nbsp; k<sub>e0</sub> = 0,146·(peso/70)<sup>−0,25</sup> /min <span class="c">PAS pk_models.py L335</span></div>
+</div>
+<h3>Curva do BIS</h3>
+<div class="eq">
+<div>Ce<sub>50</sub> = 3,08·e<sup>−0,00635·(idade − 35)</sup> µg/ml <span class="c">L218, L222</span></div>
+<div>U = Ce ⁄ Ce<sub>50</sub>, &nbsp; γ = 1,89 se Ce ≤ Ce<sub>50</sub>, ou 1,47 se Ce &gt; Ce<sub>50</sub> <span class="c">L226–L228</span></div>
+<div>BIS<sub>calc</sub> = E<sub>0</sub> − E<sub>0</sub>·U<sup>γ</sup> ⁄ (1 + U<sup>γ</sup>), &nbsp; E<sub>0</sub> = 93 <span class="c">L232–L234</span></div>
+</div>
+<h3>Atraso do monitor</h3>
+<div class="eq"><div>τ = 15 + e<sup>0,0517·idade</sup> s, &nbsp; BIS(t) = BIS<sub>calc</sub>(t − τ) <span class="c">L219, L236; interpolado entre dois segundos; antes disso, 93</span></div></div>
+<p class="ink2">O PAS arredonda esse atraso para segundos inteiros e usa uma amostra a menos; aqui usamos o atraso exato do artigo (diferença &lt; 1 ponto de BIS).
+Exemplo (62 anos, 72 kg): Ce<sub>50</sub> = 2,59 µg/ml, k<sub>e0</sub> = 0,145 /min, τ = 39,7 s.</p>
+<div class="aviso"><b>Remifentanil e BIS:</b> no modelo de Eleveld, o termo do remifentanil no BIS é zero (PAS L224, <code>c50r = 0</code>). O remifentanil só
+muda o BIS indiretamente, pela farmacocinética do propofol com opioide (seção 4). Usar um modelo de interação para o BIS fica como decisão pendente.</div>
+</section>
+
+<!-- ===================================================================== 9 -->
+<section id="pop">
+<h2><span class="n">9</span>Pacientes virtuais (variabilidade entre pessoas)</h2>
+<p>Duas pessoas com os mesmos dados respondem diferente ao mesmo fármaco. Os artigos publicam o tamanho dessa diferença (a variância
+ω² de cada parâmetro). O software sorteia <b>500 versões</b> do paciente; cada versão tem os parâmetros sorteados assim:</p>
+<div class="eq">
+<div>Log-normal: valor da versão = valor típico × e<sup>η</sup>, &nbsp; η ~ Normal(0, ω²)</div>
+<div>Aditiva (3 parâmetros do remifentanil no Su, como no PAS): valor da versão = valor típico + η</div>
+</div>
+<div class="tbl"><table>
+<tr><th>Parâmetro</th><th>Forma</th><th class="num">ω²</th><th>Fonte</th></tr>
+<tr><td>Eleveld: V1, V2, V3</td><td>log-normal</td><td class="num">0,610; 0,565; 0,597</td><td>PAS pk_models L346–L348</td></tr>
+<tr><td>Eleveld: CL, Q2, Q3</td><td>log-normal</td><td class="num">0,265; 0,346; 0,209</td><td>PAS pk_models L349–L351</td></tr>
+<tr><td>Su: C50 do propofol na RPT</td><td>log-normal</td><td class="num">0,44</td><td>PAS pd_models L1009</td></tr>
+<tr><td>Eleveld (BIS): Ce<sub>50</sub></td><td>log-normal</td><td class="num">ln(1 + 0,523²) = 0,242</td><td>PAS pd_models L223</td></tr>
+<tr><td>Eleveld (BIS): k<sub>e0</sub></td><td>log-normal</td><td class="num">0,702</td><td>PAS pk_models L352</td></tr>
+<tr><td>Minto: V1, V2, V3</td><td>log-normal</td><td class="num">ln(1 + CV²), CV 0,26; 0,29; 0,66</td><td>PAS pk_models L375–L377</td></tr>
+<tr><td>Minto: CL, Q2, Q3</td><td>log-normal</td><td class="num">ln(1 + CV²), CV 0,14; 0,36; 0,41</td><td>PAS pk_models L378–L380</td></tr>
+<tr><td>Su: efeito máximo do remi na RPT</td><td>aditiva</td><td class="num">0,449</td><td>PAS pd_models L1010, L1077</td></tr>
+<tr><td>Su: efeito do remi na FC e no VS</td><td>aditiva, sorteados juntos</td><td class="num">0,00382; 0,00868 (covariância 0,00329)</td><td>PAS pd_models L1007, L1079–L1081</td></tr>
+</table></div>
+<ul>
+<li><b>Sorteio conjunto (FC e VS do remi):</b> η = L·z, com z dois números Normal(0, 1) e L·Lᵀ = a matriz de covariância (fatoração de Cholesky).</li>
+<li><b>Não variam:</b> os outros parâmetros do Su, porque não há variabilidade publicada para eles no PAS. A variabilidade dos basais de RPT, VS e FC do Su
+não entra, porque os basais aqui são os medidos. Por isso, as faixas provavelmente são <b>mais estreitas</b> do que a realidade.</li>
+<li><b>Correção em relação ao PAS:</b> para o C50 da RPT, o PAS passa ω como média do sorteio (pd_models L1054 e L1075). Aqui o sorteio segue a definição do artigo (média 0).</li>
+<li><b>Reprodutível:</b> o sorteio usa a semente 1. A mesma semente dá sempre os mesmos 500 pacientes, com ou sem remifentanil, porque a parte do remifentanil é sorteada sempre.</li>
+<li><b>Sensibilidade</b> (análise feita só com propofol): entre os parâmetros sorteados, o C50 da RPT é o que mais se relaciona com a PAM mínima (correlação 0,80), seguido da depuração do propofol (0,45).</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 10 -->
+<section id="faixas">
+<h2><span class="n">10</span>Faixas, risco e períodos</h2>
+<h3>Faixas</h3>
+<p>A cada segundo, os 500 valores de PAM são ordenados e o software tira os <b>percentis</b>: 5% e 95% (faixa clara: 9 em cada 10 pacientes), 25% e
+75% (faixa escura: metade) e 50% (mediana). Percentil com interpolação linear, igual ao PERCENTIL.INC do Excel:</p>
+<div class="eq"><div>posição h = (n − 1)·p + 1; &nbsp; P = v<sub>⌊h⌋</sub> + (h − ⌊h⌋)·(v<sub>⌊h⌋+1</sub> − v<sub>⌊h⌋</sub>)</div></div>
+<p>O mesmo é feito para FC, Cp, Cr e BIS.</p>
+<h3>Níveis de risco</h3>
+<div class="tbl"><table>
+<tr><th>Nível</th><th>PAM</th><th>Fonte</th></tr>
+<tr><td><span class="chip b">Baixo</span></td><td>≥ 65 mmHg</td><td>Salmasi V et al. <i>Anesthesiology</i> 2017: abaixo de 65, mais lesão renal aguda e lesão miocárdica.</td></tr>
+<tr><td><span class="chip m">Moderado</span></td><td>55 a 65 mmHg</td><td>Faixa entre os dois limiares.</td></tr>
+<tr><td><span class="chip a">Alto</span></td><td>&lt; 55 mmHg</td><td>Walsh M et al. <i>Anesthesiology</i> 2013: risco maior ainda abaixo de 55.</td></tr>
+</table></div>
+<p><b>Arredondamento:</b> antes de classificar, a PAM é arredondada para mmHg inteiros, como o monitor mostra. Sem isso, uma curva que "raspa"
+o limiar (64,9; 65,1; 64,8…) cria vários períodos de 1 a 4 s.</p>
+<h3>Períodos de risco</h3>
+<p>O tempo é dividido em períodos. Em cada período, a borda de baixo da faixa clara (<b>pior caso</b>) fica num mesmo nível, e a borda de cima
+(<b>melhor caso</b>) também. Para cada período: início e fim (s), PAM mínima e máxima da faixa, nível do pior e do melhor caso. Exemplo de frase:
+"de 280 a 1200 s: PAM entre 47 e 91 mmHg — risco entre alto e baixo".</p>
+<h3>Sono no tempo</h3>
+<ul>
+<li><b>% dormindo:</b> a cada segundo, a porcentagem dos 500 pacientes com BIS &lt; 60 (é a faixa roxa no alto do gráfico principal).</li>
+<li><b>Em média dorme aos X s:</b> primeiro instante em que a <b>mediana</b> do BIS fica abaixo de 60.</li>
+<li><b>Em média acorda aos Y s:</b> depois disso, primeiro instante em que a mediana volta para 60 ou mais. Se não voltar até 1200 s, "segue dormindo até o fim".</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 11 -->
+<section id="metricas">
+<h2><span class="n">11</span>Números do resumo</h2>
+<div class="tbl"><table>
+<tr><th>Nome no código</th><th>O que é</th></tr>
+<tr><td><code>pam_nadir</code>, <code>t_nadir</code></td><td>PAM mínima da mediana e quando ocorre.</td></tr>
+<tr><td><code>queda_pct</code></td><td>Queda da mediana em % da PAM basal: 100·(1 − PAM mínima ÷ PAM basal).</td></tr>
+<tr><td><code>pam_pior</code>, <code>t_pior</code></td><td>PAM mínima da borda de baixo da faixa (5%): o <b>pior caso</b>.</td></tr>
+<tr><td><code>risco</code></td><td>Nível do pior caso (com a PAM arredondada). É o nível do cartão de risco.</td></tr>
+<tr><td><code>s_abaixo_65</code>, <code>s_abaixo_55</code></td><td>Segundos com a mediana abaixo de 65 e de 55 (arredondada); <code>_pior</code>: o mesmo para o pior caso.</td></tr>
+<tr><td><code>fc_min</code></td><td>FC mínima da mediana.</td></tr>
+<tr><td><code>cp_max</code>, <code>t_cp_max</code></td><td>Cp máxima da mediana e quando ocorre.</td></tr>
+<tr><td><code>rpt_nadir_pct</code>, <code>vs_nadir_pct</code>, <code>fc_nadir_pct</code></td><td>Variação (%) de RPT, VS e FC em relação ao basal, no instante da PAM mínima da mediana.</td></tr>
+<tr><td><code>sono.t_hipnose</code>, <code>sono.t_acorda</code></td><td>Quando, em média, dorme e acorda (seção 10).</td></tr>
+<tr><td><code>sono.pct_max</code></td><td>Maior % de pacientes dormindo ao mesmo tempo.</td></tr>
+<tr><td><code>sono.bis_min</code></td><td>BIS mínimo da mediana.</td></tr>
+</table></div>
+</section>
+
+<!-- ===================================================================== 12 -->
+<section id="pdose">
+<h2><span class="n">12</span>Pressão por dose</h2>
+<p>Para ver de uma vez em que doses o risco muda, sem simular dose por dose, o software calcula o <b>paciente típico</b> (os valores médios dos
+modelos, sem sorteio) para muitas doses. Por ser uma simulação só por valor, é rápido.</p>
+<div class="grid2">
+  <div class="card-mini"><b>Pressão por dose de propofol</b>Remifentanil fixo no valor do formulário. Propofol de 0 a 3 mg/kg, de 0,05 em 0,05 (61 doses), ou
+  concentração-alvo de 0 a 6 µg/ml, de 0,1 em 0,1 (61 alvos). Tempo de injeção e manutenção, os do formulário.</div>
+  <div class="card-mini"><b>Pressão por dose de remifentanil</b>Propofol fixo no valor do formulário. Remifentanil de 0 a 0,5 µg/kg/min, de 0,02 em 0,02 (26 taxas),
+  começando no mesmo tempo antes do propofol. O limite 0,5 vem do VitalDB (a maior taxa média foi 0,46).</div>
+</div>
+<p>Para cada valor: PAM mínima, quando ocorre, queda, segundos abaixo de 65 e de 55, nível de risco (PAM mínima arredondada) e BIS mínimo.</p>
+<ul>
+<li><b>Linhas onde o risco muda:</b> no ponto em que a curva cruza 64,5 (ou 54,5) mmHg, por interpolação linear entre os dois valores vizinhos.
+É 64,5 porque o monitor arredonda: 64,5 já aparece como 65.</li>
+<li><b>Em média dorme a partir de X:</b> a dose em que o BIS mínimo do paciente típico passa abaixo de 60, também por interpolação.</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 13 -->
+<section id="saidas">
+<h2><span class="n">13</span>O que o software devolve</h2>
+<h3>No Julia: <code>prever(...)</code></h3>
+<pre><code>r = prever(idade = 62, peso = 72, altura = 160, sexo = "F", pam = 104, fc = 78,
+           dose_mgkg = 1.5, duracao_bolus_s = 30, manutencao_mgkgh = 6,
+           remi_ugkgmin = 0.12, remi_antes_s = 540)</code></pre>
+<div class="tbl"><table>
+<tr><th>Campo</th><th>Conteúdo</th></tr>
+<tr><td><code>t</code></td><td>Tempo (s), de 0 a 1200.</td></tr>
+<tr><td><code>taxa</code>, <code>taxa_remi</code></td><td>Taxas de infusão: propofol (mg/s, de 0 em diante) e remifentanil (µg/s, desde o início dele) ou <code>nothing</code>.</td></tr>
+<tr><td><code>faixa</code>, <code>metade</code></td><td>PAM: <code>inf</code>, <code>mediana</code>, <code>sup</code> (5–50–95%) e 25–75%.</td></tr>
+<tr><td><code>periodos</code>, <code>texto</code></td><td>Períodos de risco e uma frase por período.</td></tr>
+<tr><td><code>fc</code>, <code>cp</code>, <code>cr</code></td><td>Faixas de FC, Cp e Cr.</td></tr>
+<tr><td><code>rpt</code>, <code>vs</code></td><td>Medianas de RPT e VS (fração do basal).</td></tr>
+<tr><td><code>bis</code>, <code>metade_bis</code>, <code>dormindo</code>, <code>sono</code></td><td>Faixas do BIS, % dormindo a cada segundo e resumo do sono.</td></tr>
+<tr><td><code>metricas</code></td><td>Resumo (seção 11).</td></tr>
+<tr><td><code>pk</code>, <code>pk_remi</code></td><td>Farmacocinéticas do paciente típico (Eleveld e Minto).</td></tr>
+</table></div>
+<p>Outras funções públicas: <code>risco_por_dose</code>, <code>risco_por_remi</code> (pressão por dose), <code>simular_populacao</code>,
+<code>simular_pk</code>, <code>simular_hemodinamica</code>, <code>simular_bis</code>, <code>parametros_eleveld</code>, <code>parametros_minto</code>,
+<code>faixa_pam</code>, <code>periodos_de_risco</code>, <code>svg_faixa</code> e <code>plataforma</code>.</p>
+<h3>Na plataforma: o servidor local</h3>
+<p>O servidor roda no próprio computador (127.0.0.1, porta 8080; nada sai da máquina) e responde em JSON:</p>
+<div class="tbl"><table>
+<tr><th>Endereço</th><th>Devolve</th><th class="num">Tempo típico</th></tr>
+<tr><td><code>/</code></td><td>A página (<code>app/index.html</code>).</td><td class="num">—</td></tr>
+<tr><td><code>/api/prever</code></td><td>Curvas a cada 2 s (PAM 5–25–50–75–95%, FC, Cp, Cr, BIS, % dormindo, RPT, VS, FC em %), métricas, sono, períodos, parâmetros e doses totais.</td><td class="num">≈ 1,5 s</td></tr>
+<tr><td><code>/api/comparar</code></td><td>Pressão por dose de propofol (61 linhas).</td><td class="num">≈ 0,1 s</td></tr>
+<tr><td><code>/api/remi</code></td><td>Pressão por dose de remifentanil (26 linhas).</td><td class="num">≈ 0,1 s</td></tr>
+</table></div>
+<p class="ink2">Campos do pedido: <code>idade, sexo, peso, altura, pam, fc, modo</code> (<code>dose</code> ou <code>alvo</code>), <code>dose, bolus, manut</code> ou <code>alvo</code>,
+<code>remi, remi_antes</code> (min). Se faltar um campo, a resposta é <code>{"ok": false, "erro": "Preencha o campo: …"}</code>.</p>
+</section>
+
+<!-- ===================================================================== 14 -->
+<section id="plataforma">
+<h2><span class="n">14</span>A plataforma, parte por parte</h2>
+<p>Abre com dois cliques em <code>abrir_plataforma.bat</code>. A janela preta é o Julia com o servidor; fechá-la fecha a plataforma.</p>
+
+<h3 id="pl-form">Formulário (coluna da esquerda)</h3>
+<ol>
+<li><b>Paciente:</b> idade (anos), sexo (Feminino/Masculino), peso (kg), altura (cm).</li>
+<li><b>Monitor:</b> PAM (mmHg) e FC (bpm) antes de qualquer fármaco. PAS, PAD e débito cardíaco não entram no modelo atual.</li>
+<li><b>Protocolo de indução</b> (propofol), com dois modos:
+  <ul><li><b>Dose:</b> número grande com a dose em mg/kg; à direita, o bolus em mg para o peso. Régua de 0,5 a 3 mg/kg e caixa numérica, sincronizadas.
+  Tempo de injeção (10 a 120 s) e manutenção (µg/kg/min; padrão 100).</li>
+  <li><b>Concentração-alvo:</b> alvo no plasma em µg/ml (régua de 1 a 8).</li></ul></li>
+<li><b>Remifentanil:</b> taxa em µg/kg/min (régua de 0 a 0,5; à direita, µg/min para o peso; 0 = "Sem", só propofol) e quantos minutos antes do propofol ele começou.</li>
+</ol>
+<p><b>Simular</b> calcula tudo. <b>Exemplos</b> preenchem e simulam na hora (o remifentanil fica o do formulário):</p>
+<div class="tbl"><table>
+<tr><th>Botão</th><th>Paciente</th><th>PAM / FC</th><th class="num">Dose</th></tr>
+<tr><td>62 a, hipertensa</td><td>Mulher, 62 anos, 72 kg, 160 cm</td><td>104 / 78</td><td class="num">1,5 mg/kg</td></tr>
+<tr><td>28 a, jovem</td><td>Homem, 28 anos, 80 kg, 180 cm</td><td>89 / 74</td><td class="num">2,0 mg/kg</td></tr>
+<tr><td>81 a, idoso</td><td>Homem, 81 anos, 64 kg, 168 cm</td><td>107 / 64</td><td class="num">1,5 mg/kg</td></tr>
+</table></div>
+
+<h3 id="pl-risco">Cartão de risco e números</h3>
+<ul>
+<li><b>Risco de hipotensão (pior caso):</b> ícone e nível (<span class="chip b">Baixo</span> <span class="chip m">Moderado</span> <span class="chip a">Alto</span>) do pior caso.
+O texto diz o protocolo, de quanto a mediana cai e quando, até onde vai o pior caso, a PAM no início do propofol (se houver remifentanil) e o sono.</li>
+<li><b>Régua da PAM:</b> faixas vermelha (&lt; 55), amarela (55–65) e verde (≥ 65); círculo vazado = <b>Basal</b>; círculo cheio = <b>Mediana</b> (PAM mínima);
+círculo vermelho = <b>Pior caso</b>. O traço mostra o tamanho da queda possível.</li>
+</ul>
+<div class="tbl"><table>
+<tr><th>Quadro</th><th>Valor grande</th><th>Linha de baixo</th></tr>
+<tr><td>PAM basal → mínima</td><td>Basal → mínima da mediana (mmHg)</td><td>Quando; PAM do pior caso.</td></tr>
+<tr><td>Queda da PAM</td><td>Queda da mediana (%)</td><td>Quando.</td></tr>
+<tr><td>Sono (BIS &lt; 60)</td><td>"Dorme → acorda" em s, "Aos X s" se segue dormindo, ou "Não dorme"</td><td>Em média; maior % de pacientes dormindo ao mesmo tempo.</td></tr>
+<tr><td>Tempo com PAM &lt; 65</td><td>Segundos (mediana)</td><td>Pior caso.</td></tr>
+<tr><td>Tempo com PAM &lt; 55</td><td>Segundos (mediana)</td><td>Pior caso.</td></tr>
+<tr><td>Concentração máxima</td><td>Cp máxima da mediana (µg/ml)</td><td>Quando.</td></tr>
+</table></div>
+
+<h3 id="pl-cartoes">Cartões 01 a 08</h3>
+<p>Em todos os gráficos: o eixo diz "grandeza (unidade)", o tempo está em segundos após o início do propofol, não há quadriculado, e passar o mouse mostra
+os valores daquele instante (um quadro com cada curva e faixa). Os números usam vírgula decimal.</p>
+
+<h4>01 · Pressão arterial e sono (gráfico principal)</h4>
+<div class="tbl"><table>
+<tr><th>Legenda</th><th>O que é</th></tr>
+<tr><td><span class="sw" style="background:#2a78d6"></span>PAM prevista (mediana)</td><td>Metade dos pacientes fica acima e metade abaixo.</td></tr>
+<tr><td><span class="sw" style="background:rgba(42,120,214,.34)"></span>Metade dos pacientes</td><td>Faixa de 25% a 75%.</td></tr>
+<tr><td><span class="sw" style="background:rgba(42,120,214,.14)"></span>9 em cada 10 pacientes</td><td>Faixa de 5% a 95%. A borda de baixo é o pior caso.</td></tr>
+<tr><td><span class="sw" style="background:var(--sono)"></span>Dormindo (BIS &lt; 60)</td><td>Faixa no alto, marcada "Sono": quanto mais roxa, mais pacientes dormindo naquele segundo.</td></tr>
+<tr><td><span class="sw" style="background:none;border-top:2px dashed var(--sono);height:0"></span>Em média dorme / acorda</td><td>Linhas pontilhadas roxas: quando a mediana do BIS cruza 60.</td></tr>
+<tr><td>Fundo verde, amarelo e vermelho</td><td>Zonas de risco baixo, moderado e alto; linhas tracejadas em 65 e 55 mmHg.</td></tr>
+<tr><td>Ponto "Mínima"</td><td>PAM mínima da mediana e quando.</td></tr>
+</table></div>
+<p>Abaixo do gráfico, a tabela <b>Períodos de risco</b>: período (s), PAM prevista (mín. a máx. da faixa) e os níveis do pior e do melhor caso.</p>
+
+<h4>02 · Pressão por dose de propofol</h4>
+<p>Paciente típico, remifentanil fixo. Caixa com o risco conforme a dose (por exemplo, "Baixo 0,00 a 1,85 mg/kg · Moderado 1,90 a 3,00 mg/kg") e a dose em que,
+em média, o paciente dorme. Legenda: <b>PAM mínima prevista</b> (linha azul), <b>Risco baixo / Moderado / Alto</b> (fundo), <b>Em média dorme a partir daqui</b>
+(pontilhado roxo); pontilhados cinza onde o risco muda (por exemplo, "65 mmHg em 1,88 mg/kg"); ponto <b>Atual</b> = dose do formulário. Clicar no gráfico ou numa linha da tabela
+simula aquela dose. Tabela (a cada 0,25 mg/kg ou 0,5 µg/ml): dose, total (mg), PAM mínima, queda, segundos com PAM &lt; 65 e &lt; 55, BIS mínimo e risco.</p>
+
+<h4>03 · Pressão por dose de remifentanil</h4>
+<p>O mesmo desenho, com o propofol fixo e o remifentanil de 0 a 0,5 µg/kg/min. Tabela a cada 0,10 µg/kg/min, com o total em µg. Clicar simula aquela taxa.
+Nota: no modelo de BIS de Eleveld, o remifentanil não muda o BIS diretamente.</p>
+
+<h4>04 · Profundidade anestésica (BIS)</h4>
+<p><b>BIS (mediana)</b> em roxo; <b>Metade dos pacientes</b> e <b>9 em cada 10 pacientes</b> em roxo claro; <b>Faixa-alvo 40–60</b> em cinza; linha no 60;
+as mesmas linhas pontilhadas de "Em média dorme / acorda". O BIS aparece como o monitor mostra, com o atraso dele.</p>
+
+<h4>05 · Frequência cardíaca</h4>
+<p>Faixa (5–95%) e mediana da FC (bpm).</p>
+
+<h4>06 · Concentrações no plasma</h4>
+<p>Dois gráficos: <b>propofol</b> (µg/ml, azul) e <b>remifentanil</b> (ng/ml, laranja), cada um com faixa e mediana.</p>
+
+<h4>07 · Os efeitos dos fármacos no modelo</h4>
+<p>Três quadros com a variação (%) no instante da PAM mínima: <b>Vasodilatação</b> (resistência periférica total), <b>Depressão miocárdica / pré-carga</b>
+(volume sistólico) e <b>Frequência cardíaca</b> (resposta à queda da PAM). Gráfico com as três curvas no tempo (medianas dos 500 pacientes).</p>
+
+<h4>08 · Paciente virtual</h4>
+<p>Os parâmetros usados nesta simulação, em sete quadros, cada um com a fonte:</p>
+<ul>
+<li><b>Paciente:</b> PAM e FC basais, idade, peso, altura, IMC, número de pacientes virtuais e doses totais em 20 min.</li>
+<li><b>Propofol: farmacocinética</b> (Eleveld 2018, com ou sem os termos de opioide): V1, V2, V3, CL, Q2, Q3 do paciente típico.</li>
+<li><b>Remifentanil: farmacocinética</b> (Minto 1997): infusão e início, V1, V2, V3, CL, Q2, Q3.</li>
+<li><b>Circulação: propofol</b> (Su 2023): C50 e inclinação na resistência, efeito máximo na resistência, C50 e efeito máximo no VS (para a idade), k<sub>out</sub>, feedback e α.</li>
+<li><b>Circulação: remifentanil e interações</b> (Su 2023): C50 e efeito máximo na resistência, efeitos na FC e no VS e as quatro interações.</li>
+<li><b>Sono: BIS</b> (Eleveld 2018): Ce<sub>50</sub> para a idade, k<sub>e0</sub> para o peso, atraso do monitor e o limiar BIS &lt; 60.</li>
+<li><b>Variabilidade entre pessoas (ω²):</b> todas as variâncias usadas no sorteio dos pacientes virtuais (seção 9).</li>
+</ul>
+<p class="ink2">Os números chegam do servidor com 4 algarismos significativos, para parâmetros pequenos (como 0,0327) não perderem casas.</p>
+
+<h3 id="pl-outros">Rodapé, tema e erros</h3>
+<ul>
+<li><b>Imprimir / salvar PDF:</b> imprime os resultados (o formulário some na impressão).</li>
+<li><b>Baixar curva (CSV):</b> planilha com ponto e vírgula e vírgula decimal (abre no Excel em português). Colunas: <code>t_s; PAM_p5; PAM_p25; PAM_mediana;
+PAM_p75; PAM_p95; FC_mediana; Cp_propofol_mediana; Cp_remifentanil_mediana; BIS_mediana; Dormindo_pct</code>, a cada 2 s.</li>
+<li><b>Tema:</b> alterna claro e escuro (fica guardado no navegador).</li>
+<li><b>Erros:</b> caixa vermelha no formulário ("Preencha o campo: peso.", "Sem resposta do servidor. A janela do Julia ainda está aberta?").</li>
+<li>Os cartões 02 e 03 mostram "Calculando" até chegar a resposta deles; o resto aparece antes.</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 15 -->
+<section id="codigo">
+<h2><span class="n">15</span>O código, arquivo por arquivo</h2>
+<p>Pacote Julia <code>PropofolWK</code>, só com bibliotecas que já vêm com o Julia (LinearAlgebra, Random, Sockets): não precisa baixar nada da internet.</p>
+<div class="tbl"><table>
+<tr><th>Arquivo</th><th>O que faz</th><th>Funções principais</th></tr>
+<tr><td><code>src/PropofolWK.jl</code></td><td>Módulo principal: inclui os arquivos na ordem e diz o que fica disponível (<code>export</code>).</td><td>—</td></tr>
+<tr><td><code>src/farmacocinetica.jl</code></td><td>Eleveld 2018 (seção 4).</td><td><code>parametros_eleveld</code>, <code>matrizes_pk</code>, <code>simular_pk</code>, <code>taxa_bolus</code></td></tr>
+<tr><td><code>src/alvo.jl</code></td><td>Concentração-alvo (seção 5).</td><td><code>taxa_alvo</code></td></tr>
+<tr><td><code>src/remifentanil.jl</code></td><td>Minto 1997 (seção 6).</td><td><code>massa_magra_james</code>, <code>parametros_minto</code>, <code>ω²_MINTO</code>, <code>taxa_remifentanil</code></td></tr>
+<tr><td><code>src/bis.jl</code></td><td>BIS de Eleveld (seção 8).</td><td><code>ParametrosBIS</code>, <code>simular_ce</code>, <code>simular_bis</code>, <code>metricas_bis</code>, <code>LIMIAR_BIS</code></td></tr>
+<tr><td><code>src/hemodinamica.jl</code></td><td>Modelo de Su (seção 7).</td><td><code>ParametrosSu</code>, <code>aparentes</code>, <code>derivadas</code>, <code>passo_rk4</code>, <code>simular_hemodinamica</code></td></tr>
+<tr><td><code>src/risco.jl</code></td><td>Faixas, níveis e períodos (seção 10).</td><td><code>LIMIARES</code>, <code>nivel</code>, <code>percentil</code>, <code>faixa_pam</code>, <code>periodos_de_risco</code>, <code>descrever</code></td></tr>
+<tr><td><code>src/populacao.jl</code></td><td>Pacientes virtuais (seção 9).</td><td><code>sortear_paciente</code>, <code>sortear_remifentanil</code>, <code>simular_populacao</code></td></tr>
+<tr><td><code>src/grafico.jl</code></td><td>Gráfico da faixa em SVG, para usar fora da plataforma.</td><td><code>svg_faixa</code>, <code>grafico_faixa</code></td></tr>
+<tr><td><code>src/previsao.jl</code></td><td>Junta tudo (seções 11 a 13).</td><td><code>taxa_infusao</code>, <code>prever</code>, <code>metricas</code>, <code>simular_tipico</code>, <code>risco_por_dose</code>, <code>risco_por_remi</code></td></tr>
+<tr><td><code>src/servidor.jl</code></td><td>Servidor local e JSON.</td><td><code>ler_formulario</code>, <code>responder_previsao</code>, <code>responder_comparar</code>, <code>responder_remi</code>, <code>plataforma</code></td></tr>
+<tr><td><code>app/index.html</code></td><td>A página: formulário, pedidos ao servidor e gráficos em SVG desenhados à mão (sem biblioteca externa).</td><td><code>simular</code>, <code>chart</code>, <code>renderTudo</code>, <code>pressaoPorValor</code>, <code>renderComparar</code>, <code>renderRemi</code></td></tr>
+<tr><td><code>test/runtests.jl</code></td><td>Testes (seção 16).</td><td>—</td></tr>
+<tr><td><code>test/gerar_referencia_*.py</code></td><td>Geram as tabelas de referência com o PAS (commit 4afc03a).</td><td>pk, pas, bis, remi</td></tr>
+<tr><td><code>scripts/remifentanil_vitaldb.py</code></td><td>Doses de remifentanil no VitalDB e Minto × bomba (seção 6).</td><td>—</td></tr>
+<tr><td><code>exemplos/prever_paciente.jl</code></td><td>Exemplo de uso no Julia.</td><td>—</td></tr>
+<tr><td><code>abrir_plataforma.bat</code></td><td>Abre a plataforma com dois cliques (Windows).</td><td>—</td></tr>
+<tr><td><code>docs/decisoes.md</code></td><td>Cada decisão de método, com fonte e situação.</td><td>—</td></tr>
+<tr><td><code>docs/manual_medico.md</code></td><td>Manual para o médico.</td><td>—</td></tr>
+</table></div>
+<h3>O caminho de um clique em "Simular"</h3>
+<ol>
+<li>A página lê o formulário (<code>coletar</code>) e pede <code>/api/prever</code>.</li>
+<li><code>ler_formulario</code> converte as unidades; <code>prever</code> monta as taxas (<code>taxa_infusao</code>, <code>taxa_remifentanil</code>).</li>
+<li><code>simular_populacao</code> sorteia 500 pacientes; para cada um: <code>simular_pk</code> (propofol e remifentanil) → <code>simular_hemodinamica</code> e <code>simular_bis</code>.</li>
+<li><code>faixa_pam</code>, <code>periodos_de_risco</code>, <code>metricas</code> e <code>metricas_bis</code> resumem; o servidor responde em JSON (curvas a cada 2 s).</li>
+<li>A página desenha tudo (<code>renderTudo</code>) e depois pede <code>/api/comparar</code> e <code>/api/remi</code> para os cartões 02 e 03.</li>
+</ol>
+<h3>Como rodar</h3>
+<pre><code>cd("C:/Users/vivia/PBL_Propofol_Beh")
+]                      # modo de pacotes
+activate .
+test                   # roda os testes
+# Backspace volta ao Julia normal:
+using PropofolWK
+plataforma()           # ou dois cliques em abrir_plataforma.bat</code></pre>
+</section>
+
+<!-- ===================================================================== 16 -->
+<section id="testes">
+<h2><span class="n">16</span>Testes e validação</h2>
+<div class="tbl"><table>
+<tr><th>Grupo de testes</th><th>O que confere</th></tr>
+<tr><td>Eleveld 2018: farmacocinética</td><td>Cp igual à do PAS para dois pacientes, com e sem opioide (diferença &lt; 10<sup>−13</sup> µg/ml).</td></tr>
+<tr><td>Su 2023, só propofol</td><td>Sem fármaco, tudo no basal; PAM e FC iguais às do PAS; a PAM não depende do VS basal.</td></tr>
+<tr><td>Faixa e períodos de risco</td><td>Níveis, percentil igual ao do Excel, faixa e períodos.</td></tr>
+<tr><td>Pacientes virtuais</td><td>Mesma semente, mesmas curvas; sem variabilidade, todos iguais ao típico (PAM e BIS); sorteio com média 0 e variância ω².</td></tr>
+<tr><td>Arredondamento</td><td>Sem períodos picotados.</td></tr>
+<tr><td>Gráfico da faixa (SVG)</td><td>Arquivo e textos do gráfico.</td></tr>
+<tr><td>Concentração-alvo</td><td>Cp chega ao alvo e fica nele; com limite de bomba; alvo que cai.</td></tr>
+<tr><td>Previsão completa</td><td>Modos dose, manutenção e alvo; erros com explicação.</td></tr>
+<tr><td>Plataforma</td><td>Leitura do endereço, JSON, página e os três endereços da API (inclusive com remifentanil e vírgula decimal).</td></tr>
+<tr><td>Risco por dose</td><td>Igual a simular à mão; mais dose, PAM e BIS mais baixos.</td></tr>
+<tr><td>Eleveld 2018: BIS</td><td>Ce igual à do PAS; equação do BIS idêntica; com o atraso exato, menos de 1 ponto de diferença.</td></tr>
+<tr><td>Remifentanil (Minto e Su)</td><td>Cr, Cp, PAM e FC iguais às do PAS com os dois fármacos; sem remifentanil, igual à versão só com propofol; mais remifentanil, PAM mais baixa; sorteio com as variâncias e a covariância publicadas.</td></tr>
+</table></div>
+<p><b>Resumo da validação:</b> as equações foram conferidas contra o PAS (implementação de referência dos autores) e contra as bombas do VitalDB (Minto).
+O que <b>ainda não</b> foi validado é a resposta da pressão em pacientes de verdade: os parâmetros do Su vêm de voluntários saudáveis.</p>
+</section>
+
+<!-- ===================================================================== 17 -->
+<section id="exemplo">
+<h2><span class="n">17</span>Exemplo completo</h2>
+<p>Mulher, 62 anos, 72 kg, 160 cm; PAM 104 mmHg e FC 78 bpm antes de qualquer fármaco; propofol 1,5 mg/kg em 30 s + manutenção de 100 µg/kg/min;
+remifentanil 0,12 µg/kg/min, começando 9 min antes.</p>
+<div class="tbl"><table>
+<tr><th>Resultado</th><th class="num">Com remifentanil</th><th class="num">Sem remifentanil</th></tr>
+<tr><td>PAM no início do propofol (mediana)</td><td class="num">98 mmHg</td><td class="num">104 mmHg</td></tr>
+<tr><td>Cr no início do propofol (mediana)</td><td class="num">3,25 ng/ml</td><td class="num">—</td></tr>
+<tr><td>PAM mínima da mediana</td><td class="num">58 mmHg</td><td class="num">77 mmHg</td></tr>
+<tr><td>Queda da mediana</td><td class="num">44%</td><td class="num">26%</td></tr>
+<tr><td>Pior caso (5%)</td><td class="num">47 mmHg</td><td class="num">60 mmHg</td></tr>
+<tr><td>Risco (pior caso)</td><td class="num"><span class="chip a">Alto</span></td><td class="num"><span class="chip m">Moderado</span></td></tr>
+<tr><td>Cp máxima (mediana)</td><td class="num">14,0 µg/ml aos 30 s</td><td class="num">13,6 µg/ml aos 30 s</td></tr>
+<tr><td>Em média dorme</td><td class="num">aos 131 s e segue dormindo</td><td class="num">aos 149 s e segue dormindo</td></tr>
+<tr><td>Maior % de pacientes dormindo</td><td class="num">70%</td><td class="num">61%</td></tr>
+</table></div>
+<p>Períodos de risco com remifentanil: "de 0 a 123 s: PAM entre 65 e 122 mmHg — risco baixo"; "de 124 a 279 s: PAM entre 55 e 103 mmHg — risco entre moderado e baixo";
+"de 280 a 1200 s: PAM entre 47 e 91 mmHg — risco entre alto e baixo".</p>
+<p class="ink2">A diferença mostra o peso do remifentanil no modelo de Su: os dois fármacos juntos derrubam bem mais a pressão do que o propofol sozinho.</p>
+</section>
+
+<!-- ===================================================================== 18 -->
+<section id="limites">
+<h2><span class="n">18</span>Limitações e pendências</h2>
+<h3>Limitações</h3>
+<ul>
+<li>Os efeitos na pressão (Su 2023) foram estimados em <b>voluntários saudáveis</b> e ainda não validados em pacientes.</li>
+<li>A variabilidade é só a publicada; as faixas provavelmente são mais estreitas que a realidade.</li>
+<li>Não entram: outros opioides e hipnóticos, gases, vasopressores, volemia, laringoscopia e estímulo cirúrgico.</li>
+<li>O remifentanil não muda o BIS no modelo de Eleveld.</li>
+<li>Taxas de remifentanil acima de 0,5 µg/kg/min ficam fora do que o VitalDB mostrou.</li>
+</ul>
+<h3>Pendências (detalhes em <code>docs/decisoes.md</code>)</h3>
+<ul>
+<li>Conferir os valores do Su nas tabelas do artigo (inclusive 0,033 × 0,0333 e o significado do termo dependente do tempo).</li>
+<li>Qual farmacocinética (do propofol e do remifentanil) o Su usou.</li>
+<li>Se a variabilidade dos 3 parâmetros do remifentanil no Su é mesmo aditiva.</li>
+<li>Usar ou não um modelo de interação para o BIS.</li>
+<li>Remifentanil por concentração-alvo, como as bombas do VitalDB.</li>
+<li>Comparar com os casos do VitalDB da Beatriz, usando a PAM de antes do remifentanil como basal.</li>
+</ul>
+</section>
+
+<!-- ===================================================================== 19 -->
+<section id="refs">
+<h2><span class="n">19</span>Referências</h2>
+<ol>
+<li>Eleveld DJ, Colin P, Absalom AR, Struys MMRF. Pharmacokinetic–pharmacodynamic model for propofol for broad application in anaesthesia and sedation. <i>Br J Anaesth</i> 2018;120(5):942–59. doi:10.1016/j.bja.2018.01.018</li>
+<li>Su H, Koomen JV, Eleveld DJ, Struys MMRF, Colin PJ. Pharmacodynamic mechanism-based interaction model for the haemodynamic effects of remifentanil and propofol in healthy volunteers. <i>Br J Anaesth</i> 2023;131(2):222–33. doi:10.1016/j.bja.2023.04.043</li>
+<li>Minto CF, Schnider TW, Egan TD et al. Influence of age and gender on the pharmacokinetics and pharmacodynamics of remifentanil: I. Model development. <i>Anesthesiology</i> 1997;86(1):10–23. doi:10.1097/00000542-199701000-00004</li>
+<li>Salmasi V, Maheshwari K, Yang D et al. Relationship between intraoperative hypotension, defined by either reduction from baseline or absolute thresholds, and acute kidney and myocardial injury after noncardiac surgery. <i>Anesthesiology</i> 2017;126:47–65.</li>
+<li>Walsh M, Devereaux PJ, Garg AX et al. Relationship between intraoperative mean arterial pressure and clinical outcomes after noncardiac surgery. <i>Anesthesiology</i> 2013;119:507–15.</li>
+<li>NICE. Depth of anaesthesia monitors — Bispectral Index (BIS), E-Entropy and Narcotrend-Compact M. Diagnostics guidance DG6, 2012.</li>
+<li>Lee HC, Park Y, Yoon SB et al. VitalDB, a high-fidelity multi-parameter vital signs database in surgical patients. <i>Sci Data</i> 2022;9:279.</li>
+<li>Python Anesthesia Simulator (PAS), commit 4afc03a: <a href="https://github.com/AnesthesiaSimulation/Python_Anesthesia_Simulator">github.com/AnesthesiaSimulation/Python_Anesthesia_Simulator</a>.</li>
+</ol>
+</section>
+</main>
+</div>
+<button class="tema" id="tema" type="button">Tema claro/escuro</button>
+<script>
+document.getElementById("tema").onclick = () => {
+  const r = document.documentElement, escuro = r.dataset.theme === "dark" || (!r.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+  r.dataset.theme = escuro ? "light" : "dark";
+};
+</script>
+</body>
+</html>

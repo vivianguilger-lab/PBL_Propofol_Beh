@@ -272,10 +272,18 @@ table.doses tbody tr { cursor: pointer; } table.doses tbody tr:hover td { backgr
 .mech .k { font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; font-weight: 500; }
 .mech .v { font: 600 24px/1.2 var(--f-display); font-variant-numeric: tabular-nums; margin-top: 2px; }
 .mech .d { font-size: 12px; color: var(--muted); }
-/* dl.params: lista de parâmetros do paciente virtual (nome à esquerda, valor à direita). */
-dl.params { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0 22px; margin: 0; font-size: 13px; }
-dl.params div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); padding: 8px 0; }
-dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+/* .params: parâmetros do paciente virtual em grupos (um quadro por modelo). Em cada quadro: título, fonte e linhas
+   com o nome à esquerda e o valor à direita. */
+.params { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.params .grupo { background: var(--surface-2); border-radius: 12px; padding: 12px 14px 6px; }
+.params h3 { margin: 0; font: 600 14px var(--f-ui); display: flex; align-items: center; gap: 8px; }
+.params h3 .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.params .fonte { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+.params dl { margin: 0; font-size: 13px; }
+.params dl div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: 1px solid var(--border); padding: 6px 0; }
+.params dt { color: var(--ink-2); }
+.params dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.params dd small { font-weight: 400; color: var(--ink-2); margin-left: 3px; }
 /* Rodapé: aviso de uso educacional e botões de imprimir e de baixar CSV. .hidden esconde qualquer elemento. */
 .foot { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
 .disclaimer { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; margin: 0; flex: 1 1 420px; }
@@ -502,38 +510,25 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
         </div>
       </section>
 
-      <!-- Cartão 04: resposta à dose. Para cada dose, a % dos mesmos 200 pacientes virtuais que dorme e que tem hipotensão. -->
+      <!-- Cartão 04: profundidade anestésica (BIS) no tempo, com a faixa-alvo de 40 a 60 e quando, em média, dorme e acorda. -->
       <section class="card">
-        <div class="hd"><span class="idx">04</span><h2 id="chcTit">Resposta à dose</h2><span class="hint" id="chcHint"></span></div>
-        <div class="bd">
-          <div id="chcLoad" class="hint loading-dots">Calculando</div>
-          <div id="chcOk" class="hidden">
-            <div class="window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div id="chcTxt"></div></div>
-            <div class="legend" id="legChc"></div>
-            <div class="chart" id="chChc"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Cartão 05: profundidade anestésica (BIS) no tempo, com a faixa-alvo de 40 a 60 e quando, em média, dorme e acorda. -->
-      <section class="card">
-        <div class="hd"><span class="idx">05</span><h2>Profundidade anestésica (BIS)</h2><span class="hint">Eleveld 2018 · Como o monitor mostra, com o atraso dele</span></div>
+        <div class="hd"><span class="idx">04</span><h2>Profundidade anestésica (BIS)</h2><span class="hint">Eleveld 2018 · Como o monitor mostra, com o atraso dele</span></div>
         <div class="bd">
           <div class="legend" id="legBIS"></div>
           <div class="chart" id="chBIS"></div>
         </div>
       </section>
 
-      <!-- Cartões 06 e 07, em duas colunas: FC e concentrações plasmáticas de propofol e de remifentanil, também como faixa. -->
+      <!-- Cartões 05 e 06, em duas colunas: FC e concentrações plasmáticas de propofol e de remifentanil, também como faixa. -->
       <div class="grid2c">
-        <section class="card"><div class="hd"><span class="idx">06</span><h2>Frequência cardíaca</h2><span class="hint">Faixa e mediana</span></div><div class="bd"><div class="chart" id="chFC"></div></div></section>
-        <section class="card"><div class="hd"><span class="idx">07</span><h2>Concentrações no plasma</h2><span class="hint">Propofol (Eleveld) e remifentanil (Minto) · Movem a hemodinâmica</span></div>
+        <section class="card"><div class="hd"><span class="idx">05</span><h2>Frequência cardíaca</h2><span class="hint">Faixa e mediana</span></div><div class="bd"><div class="chart" id="chFC"></div></div></section>
+        <section class="card"><div class="hd"><span class="idx">06</span><h2>Concentrações no plasma</h2><span class="hint">Propofol (Eleveld) e remifentanil (Minto) · Movem a hemodinâmica</span></div>
           <div class="bd"><div class="chart" id="chCP"></div><div class="chart" id="chCR" style="margin-top:10px"></div></div></section>
       </div>
 
-      <!-- Cartão 08: os efeitos do propofol e do remifentanil no modelo de Su (resistência e volume sistólico; FC pelo feedback), em % do basal. -->
+      <!-- Cartão 07: os efeitos do propofol e do remifentanil no modelo de Su (resistência e volume sistólico; FC pelo feedback), em % do basal. -->
       <section class="card">
-        <div class="hd"><span class="idx">08</span><h2>Os efeitos dos fármacos no modelo</h2><span class="hint">(Su 2023: propofol e remifentanil na resistência, no volume sistólico e na FC)</span></div>
+        <div class="hd"><span class="idx">07</span><h2>Os efeitos dos fármacos no modelo</h2><span class="hint">(Su 2023: propofol e remifentanil na resistência, no volume sistólico e na FC)</span></div>
         <div class="bd">
           <div class="mech" id="mech"></div>
           <div class="legend" id="legMec"></div>
@@ -542,10 +537,10 @@ dl.params dt { color: var(--ink-2); } dl.params dd { margin: 0; font-weight: 600
         </div>
       </section>
 
-      <!-- Cartão 09: parâmetros usados (farmacocinética do paciente típico, efeito de Su, BIS de Eleveld e variabilidade). -->
+      <!-- Cartão 08: parâmetros usados (farmacocinética do paciente típico, efeito de Su, BIS de Eleveld e variabilidade). -->
       <section class="card">
-        <div class="hd"><span class="idx">09</span><h2>Paciente virtual</h2><span class="hint">Parâmetros do paciente típico e variabilidade usada nos pacientes virtuais</span></div>
-        <div class="bd"><dl class="params" id="params"></dl></div>
+        <div class="hd"><span class="idx">08</span><h2>Paciente virtual</h2><span class="hint">Parâmetros do paciente típico e variabilidade usada nos pacientes virtuais</span></div>
+        <div class="bd"><div class="params" id="params"></div></div>
       </section>
 
       <!-- Rodapé: aviso de uso educacional e botões de imprimir e de baixar a curva em CSV (planilha). -->
@@ -662,11 +657,11 @@ async function pedir(url, campos) {
 }
 
 // ---------------------------------------------------------------- simulação
-// ultimo: última previsão; cmp: última pressão × dose de propofol; rem: de remifentanil; chc: última resposta à dose;
+// ultimo: última previsão; cmp: última pressão × dose de propofol; rem: de remifentanil;
 // pedido: contador para ignorar respostas de pedidos antigos.
-let ultimo = null, cmp = null, rem = null, chc = null, pedido = 0;
+let ultimo = null, cmp = null, rem = null, pedido = 0;
 $("form").onsubmit = e => { e.preventDefault(); simular(); };
-// simular(): 1) pede /api/prever e desenha tudo; 2) /api/comparar (cartão 02); 3) /api/remi (cartão 03); 4) /api/chances (cartão 04, o mais demorado).
+// simular(): 1) pede /api/prever e desenha tudo; 2) /api/comparar (cartão 02); 3) /api/remi (cartão 03).
 async function simular() {
   const meu = ++pedido;
   $("err").style.display = "none";
@@ -677,10 +672,9 @@ async function simular() {
   try {
     const r = await pedir("/api/prever", campos);
     if (meu !== pedido) return;
-    ultimo = r; cmp = null; rem = null; chc = null; ultimo.campos = campos;
+    ultimo = r; cmp = null; rem = null; ultimo.campos = campos;
     $("vazio").classList.add("hidden"); $("res").classList.remove("hidden");
     $("cmpLoad").classList.remove("hidden"); $("cmpOk").classList.add("hidden");
-    $("chcLoad").classList.remove("hidden"); $("chcOk").classList.add("hidden");
     $("remLoad").classList.remove("hidden"); $("remOk").classList.add("hidden");
     renderTudo();
   } catch (e) { if (meu === pedido) mostraErro(e.message.includes("fetch") ? "Sem resposta do servidor. A janela do Julia ainda está aberta?" : e.message); }
@@ -689,8 +683,6 @@ async function simular() {
   try { const c = await pedir("/api/comparar", campos); if (meu === pedido) { cmp = c; renderComparar(); } } catch (e) {}
   if (meu !== pedido) return;
   try { const c = await pedir("/api/remi", campos); if (meu === pedido) { rem = c; renderRemi(); } } catch (e) {}
-  if (meu !== pedido) return;
-  try { const c = await pedir("/api/chances", campos); if (meu === pedido) { chc = c; renderChances(); if (cmp) renderComparar(); } } catch (e) {}
 }
 function mostraErro(m) { $("err").textContent = m; $("err").style.display = "block"; }
 
@@ -849,11 +841,12 @@ const ICONES = {
 const segTip = x => `${fmt(x)} s após o início`;
 // alfa("#2a78d6", .3): a mesma cor, transparente (para as faixas).
 const alfa = (cor, a) => cor.startsWith("#") ? `rgba(${parseInt(cor.slice(1, 3), 16)},${parseInt(cor.slice(3, 5), 16)},${parseInt(cor.slice(5, 7), 16)},${a})` : cor;
-// sonoMedio(dados): a dose (ou alvo) em que metade dos pacientes dorme, por interpolação entre os dois valores vizinhos.
+// sonoMedio(linhas): a menor dose (ou alvo) em que o paciente típico dorme (BIS mínimo abaixo de 60), por interpolação
+// entre os dois valores vizinhos da tabela de pressão × dose.
 function sonoMedio(L) {
-  for (let i = 1; i < L.length; i++) if (L[i].dorme >= 50 && L[i - 1].dorme < 50)
-    return L[i - 1].valor + (50 - L[i - 1].dorme) / (L[i].dorme - L[i - 1].dorme) * (L[i].valor - L[i - 1].valor);
-  return null;
+  for (let i = 1; i < L.length; i++) if (L[i].bis_min < 60 && L[i - 1].bis_min >= 60)
+    return L[i - 1].valor + (L[i - 1].bis_min - 60) / (L[i - 1].bis_min - L[i].bis_min) * (L[i].valor - L[i - 1].valor);
+  return L.length && L[0].bis_min < 60 ? L[0].valor : null;
 }
 const EIXO_T = "Tempo após o início da infusão (s)";
 
@@ -992,32 +985,54 @@ function renderTudo() {
     series: [{ x: t, y: c.rpt, color: S1, label: "Resistência", unit: "%" },
              { x: t, y: c.vs, color: S2, label: "Volume sistólico", unit: "%" },
              { x: t, y: c.fcp, color: S3, label: "FC", unit: "%" }] });
-  // 08 paciente virtual: farmacocinética do paciente típico, parâmetros do efeito, do BIS e variabilidade.
-  const imc = +f.peso / (+f.altura / 100) ** 2;
-  const P = [["PAM / FC basais (monitor)", `${fmt(mt.pam_basal)} mmHg / ${fmt(+f.fc)} bpm`],
-    ["IMC", `${fmt(imc, 1)} kg/m²`],
-    ["Eleveld: V1 / V2 / V3", `${fmt(pk.V1, 2)} / ${fmt(pk.V2, 1)} / ${fmt(pk.V3)} L`],
-    ["Eleveld: CL / Q2 / Q3", `${fmt(pk.CL, 2)} / ${fmt(pk.Q2, 2)} / ${fmt(pk.Q3, 2)} L/min`],
-    ["Su: C50 da resistência / γ", `${fmt(pr.c50_rpt, 2)} µg/ml / ${fmt(pr["γ_rpt"], 2)}`],
-    ["Su: efeito máximo na resistência", `${fmt(100 * pr.emax_rpt, 1)}%`],
-    ["Su: C50 do volume sistólico", `${fmt(pr.c50_vs, 2)} µg/ml`],
-    ["Su: efeito máximo no VS (idade)", `${fmt(100 * pr.emax_vs, 1)}%`],
-    ["Su: renovação (k_out) / feedback", `${fmt(pr.k_out, 3)} /min / ${fmt(pr.fb, 3)}`],
-    ["Minto (remi): V1 / V2 / V3", `${fmt(r.pk_remi.V1, 2)} / ${fmt(r.pk_remi.V2, 2)} / ${fmt(r.pk_remi.V3, 2)} L`],
-    ["Minto (remi): CL / Q2 / Q3", `${fmt(r.pk_remi.CL, 2)} / ${fmt(r.pk_remi.Q2, 2)} / ${fmt(r.pk_remi.Q3, 3)} L/min`],
-    ["Su (remi): C50 / efeito máximo na resistência", `${fmt(pr.c50_remi_rpt, 2)} ng/ml / ${fmt(100 * pr.emax_remi_rpt)}%`],
-    ["Su (remi): efeito na FC / no VS", `${fmt(pr.sl_remi_fc, 4)} / ${fmt(pr.sl_remi_vs, 4)} por ng/ml`],
-    ["Su: interações na resistência / VS / FC", `${fmt(pr.int_rpt, 2)} / ${fmt(pr.int_vs, 3)} / ${fmt(pr.int_fc, 3)}`],
-    ["Eleveld (BIS): Ce50 para a idade", `${fmt(so.ce50, 2)} µg/ml`],
-    ["Eleveld (BIS): ke0 / atraso do monitor", `${fmt(so.ke0, 3)} /min / ${fmt(so.atraso)} s`],
-    ["Variabilidade (ω²): C50 da resistência", fmt(pr["ω²_c50"], 2)],
-    ["Variabilidade (ω²): Ce50 / ke0 do BIS", `${fmt(so["ω²_ce50"], 2)} / ${fmt(so["ω²_ke0"], 2)}`],
-    ["Pacientes virtuais", `${fmt(pr.n)} · Faixas de 5% a 95% e de 25% a 75%`],
-    ["Variabilidade: efeito máximo do remi na resistência", `${fmt(pr["ω²_emax_remi"], 3)} (aditiva)`],
-    ["Dose total em 20 min", `${fmt(r.dose_mg)} mg de propofol` + (r.remi_ug > 0 ? ` · ${fmt(r.remi_ug)} µg de remifentanil` : "")]];
-  $("params").innerHTML = P.map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join("");
+  // 08 paciente virtual: os parâmetros usados, em grupos (um quadro por modelo), cada um com a fonte.
+  // Cada linha é [nome, valor, unidade]; f(x, d) escreve o número com d casas.
+  const imc = +f.peso / (+f.altura / 100) ** 2, pr2 = r.pk_remi, w = pr["ω²_eleveld"], wm = pr["ω²_minto"];
+  const G = [
+    { tit: "Paciente", cor: css("--ink-2"), fonte: "Dados do formulário", linhas: [
+      ["PAM / FC basais", `${fmt(mt.pam_basal)} / ${fmt(+f.fc)}`, "mmHg / bpm"],
+      ["Idade · peso · altura", `${fmt(+f.idade)} · ${fmt(+f.peso, 1)} · ${fmt(+f.altura)}`, "anos · kg · cm"],
+      ["IMC", fmt(imc, 1), "kg/m²"],
+      ["Pacientes virtuais", fmt(pr.n), "Faixas 5–95% e 25–75%"],
+      ["Total em 20 min", `${fmt(r.dose_mg)} mg` + (r.remi_ug > 0 ? ` · ${fmt(r.remi_ug)} µg` : ""), r.remi_ug > 0 ? "propofol · remi" : "propofol"]] },
+    { tit: "Propofol: farmacocinética", cor: S1, fonte: "Eleveld 2018" + (pr.opioide ? " · Com os termos de opioide" : " · Sem opioide"), linhas: [
+      ["V1 · V2 · V3", `${fmt(pk.V1, 2)} · ${fmt(pk.V2, 1)} · ${fmt(pk.V3)}`, "L"],
+      ["CL · Q2 · Q3", `${fmt(pk.CL, 2)} · ${fmt(pk.Q2, 2)} · ${fmt(pk.Q3, 2)}`, "L/min"]] },
+    { tit: "Remifentanil: farmacocinética", cor: S2, fonte: "Minto 1997" + (r.remi.remi_ugkgmin > 0 ? "" : " · Sem remifentanil nesta simulação"), linhas: [
+      ["Infusão · início", r.remi.remi_ugkgmin > 0 ? `${fmt(r.remi.remi_ugkgmin, 2)} · ${fmt(r.remi.remi_antes_s / 60)} min antes` : "—", r.remi.remi_ugkgmin > 0 ? "µg/kg/min" : ""],
+      ["V1 · V2 · V3", `${fmt(pr2.V1, 2)} · ${fmt(pr2.V2, 2)} · ${fmt(pr2.V3, 2)}`, "L"],
+      ["CL · Q2 · Q3", `${fmt(pr2.CL, 2)} · ${fmt(pr2.Q2, 2)} · ${fmt(pr2.Q3, 3)}`, "L/min"]] },
+    { tit: "Circulação: propofol", cor: S1, fonte: "Su 2023", linhas: [
+      ["C50 na resistência", fmt(pr.c50_rpt, 2), "µg/ml"],
+      ["Inclinação na resistência (γ)", fmt(pr["γ_rpt"], 2), ""],
+      ["Efeito máximo na resistência", fmt(100 * pr.emax_rpt, 1), "%"],
+      ["C50 no volume sistólico", fmt(pr.c50_vs, 2), "µg/ml"],
+      ["Efeito máximo no VS (para a idade)", fmt(100 * pr.emax_vs, 1), "%"],
+      ["Renovação (k_out)", fmt(pr.k_out, 3), "/min"],
+      ["Feedback da PAM (fb) · efeito da FC no VS (α)", `${fmt(pr.fb, 3)} · ${fmt(pr["α"], 3)}`, ""]] },
+    { tit: "Circulação: remifentanil e interações", cor: S2, fonte: "Su 2023", linhas: [
+      ["C50 na resistência", fmt(pr.c50_remi_rpt, 2), "ng/ml"],
+      ["Efeito máximo na resistência", fmt(100 * pr.emax_remi_rpt), "%"],
+      ["Efeito na FC · no VS", `${fmt(pr.sl_remi_fc, 4)} · ${fmt(pr.sl_remi_vs, 4)}`, "por ng/ml"],
+      ["Interação na resistência", fmt(pr.int_rpt, 2), ""],
+      ["Interação no VS · na FC", `${fmt(pr.int_vs, 3)} · ${fmt(pr.int_fc, 3)}`, ""],
+      ["C50 do propofol na interação da FC", fmt(pr.c50_int_fc, 2), "µg/ml"]] },
+    { tit: "Sono: BIS", cor: css("--sono"), fonte: "Eleveld 2018", linhas: [
+      ["Ce50 (para a idade)", fmt(so.ce50, 2), "µg/ml"],
+      ["ke0 (para o peso)", fmt(so.ke0, 3), "/min"],
+      ["Atraso do monitor", fmt(so.atraso), "s"],
+      ["Dorme quando", "BIS < 60", ""]] },
+    { tit: "Variabilidade entre pessoas (ω²)", cor: css("--muted"), fonte: "Publicada nos artigos · Log-normal, salvo indicação", linhas: [
+      ["Eleveld: V1 · V2 · V3", `${fmt(w.V1, 3)} · ${fmt(w.V2, 3)} · ${fmt(w.V3, 3)}`, ""],
+      ["Eleveld: CL · Q2 · Q3", `${fmt(w.CL, 3)} · ${fmt(w.Q2, 3)} · ${fmt(w.Q3, 3)}`, ""],
+      ["Minto: V1 · V2 · V3", `${fmt(wm.V1, 3)} · ${fmt(wm.V2, 3)} · ${fmt(wm.V3, 3)}`, ""],
+      ["Minto: CL · Q2 · Q3", `${fmt(wm.CL, 3)} · ${fmt(wm.Q2, 3)} · ${fmt(wm.Q3, 3)}`, ""],
+      ["Su: C50 do propofol na resistência", fmt(pr["ω²_c50"], 2), ""],
+      ["Su: efeito máximo do remi na resistência", fmt(pr["ω²_emax_remi"], 3), "aditiva"],
+      ["BIS: Ce50 · ke0", `${fmt(so["ω²_ce50"], 3)} · ${fmt(so["ω²_ke0"], 3)}`, ""]] }];
+  $("params").innerHTML = G.map(g => `<div class="grupo"><h3><span class="sw" style="background:${g.cor}"></span>${g.tit}</h3>
+    <div class="fonte">${g.fonte}</div><dl>${g.linhas.map(([k, x, u]) => `<div><dt>${k}</dt><dd>${x}${u ? `<small>${u}</small>` : ""}</dd></div>`).join("")}</dl></div>`).join("");
   if (cmp) renderComparar();
-  if (chc) renderChances();
   if (rem) renderRemi();
 }
 
@@ -1070,19 +1085,19 @@ function pressaoPorValor(o) {
 }
 
 // renderComparar(): cartão 02, pressão × dose de PROPOFOL com o remifentanil fixo (/api/comparar). Também marca a dose em que,
-// em média, o paciente dorme (vem do cartão 04, quando ele fica pronto).
+// em média, o paciente dorme: a dose em que o BIS mínimo do paciente típico passa abaixo de 60.
 function renderComparar() {
   const d = cmp, f = ultimo.campos, alvo = d.modo === "alvo", un = alvo ? "µg/ml" : "mg/kg";
-  const sm = chc ? sonoMedio(chc.linhas) : null, SONO = css("--sono");
+  const sm = sonoMedio(d.linhas), SONO = css("--sono");
   $("cmpTit").textContent = alvo ? "Pressão por concentração-alvo de propofol" : "Pressão por dose de propofol";
   $("cmpHint").textContent = textoRemi() + " · " + protocolo(alvo) + " · PAM mínima de 0 até a " + (alvo ? "concentração" : "dose") + " máxima";
   $("cmpLoad").classList.add("hidden"); $("cmpOk").classList.remove("hidden");
   pressaoPorValor({ L: d.linhas, atual: alvo ? +f.alvo : +f.dose, un, dec: alvo ? 1 : 2, col: alvo ? "Alvo" : "Dose", cada: 5, totalUn: "mg",
     nome: alvo ? "a concentração-alvo de propofol" : "a dose de propofol", eixo: alvo ? "Concentração-alvo de propofol (µg/ml)" : "Dose do bolus de propofol (mg/kg)",
     ids: { janela: "janela", leg: "legCmp", chart: "chCmp", cab: "cabCmp", tab: "tabCmp" }, escolher: z => escolherValor(z, alvo),
-    nota: `${textoRemi()}. ` + (sm != null ? `Em média, o paciente dorme (BIS &lt; 60) a partir de <b>${fmt(sm, 1)} ${un}</b> (metade dos pacientes virtuais).` : chc ? "" : "Calculando a dose em que, em média, o paciente dorme…"),
+    nota: `${textoRemi()}. ` + (sm != null ? `Em média (paciente típico), o paciente dorme (BIS &lt; 60) a partir de <b>${fmt(sm, alvo ? 1 : 2)} ${un}</b>.` : `Nesta faixa, o paciente típico não chega a dormir (BIS &lt; 60).`),
     legExtra: [{ cor: SONO, tipo: "dash", txt: "Em média dorme a partir daqui" }],
-    extraV: sm != null ? [{ x: sm, color: SONO, label: `Em média dorme a partir de ${fmt(sm, 1)} ${un}`, row: 1 }] : [] });
+    extraV: sm != null ? [{ x: sm, color: SONO, label: `Em média dorme a partir de ${fmt(sm, alvo ? 1 : 2)} ${un}`, row: 1 }] : [] });
 }
 
 // renderRemi(): cartão 03, pressão × dose de REMIFENTANIL com o propofol fixo (/api/remi), no mesmo desenho do cartão 02.
@@ -1106,7 +1121,7 @@ function textoRemi() {
   return +f.remi > 0 ? `Remifentanil fixo em ${fmt(+f.remi, 2)} µg/kg/min` : "Sem remifentanil";
 }
 
-// protocolo(alvo): o que fica fixo do propofol nos cartões 02 e 04 (tempo de injeção e manutenção, ou TCI).
+// protocolo(alvo): o que fica fixo do propofol no cartão 02 (tempo de injeção e manutenção, ou TCI).
 function protocolo(alvo) {
   const f = ultimo.campos;
   if (alvo) return "Alvo plasmático mantido por 20 min";
@@ -1118,38 +1133,6 @@ function escolherValor(z, alvo) {
   const vv = alvo ? Math.round(z * 10) / 10 : Math.round(z * 20) / 20;
   if (alvo) $("alvo").value = $("alvoR").value = vv; else $("dose").value = $("doseR").value = vv;
   atualizaDose(); simular();
-}
-
-// renderChances(): cartão 04, resposta à dose (/api/chances). Para cada dose, a % dos mesmos 200 pacientes virtuais que
-// dorme (roxo), que tem PAM < 65 (laranja) e < 55 mmHg (vermelho, tracejado) e que dorme sem PAM < 65 (azul). O fundo
-// fica mais azul onde mais pacientes dormem sem hipotensão; a linha roxa pontilhada marca onde, em média, o paciente dorme.
-function renderChances() {
-  const d = chc, alvo = d.modo === "alvo", un = alvo ? "µg/ml" : "mg/kg", dec = 1, v = z => `${fmt(z, dec)} ${un}`;
-  const L = d.linhas, X = L.map(o => o.valor), dorme = L.map(o => o.dorme), h65 = L.map(o => o.h65), h55 = L.map(o => o.h55), ok = L.map(o => o.ok);
-  $("chcTit").textContent = alvo ? "Resposta à concentração-alvo" : "Resposta à dose";
-  $("chcHint").textContent = textoRemi() + " · " + protocolo(alvo) + " · Os mesmos 200 pacientes virtuais em cada " + (alvo ? "alvo" : "dose") + " · Clique para simular";
-  $("chcLoad").classList.add("hidden"); $("chcOk").classList.remove("hidden");
-  const AZ = css("--s1"), SONO = css("--sono"), LAR = css("--serious"), VER = css("--crit");
-  const i = ok.indexOf(Math.max(...ok)), sm = sonoMedio(L);
-  const h50 = (() => { for (let j = 1; j < L.length; j++) if (h65[j] >= 50 && h65[j - 1] < 50) return X[j - 1] + (50 - h65[j - 1]) / (h65[j] - h65[j - 1]) * (X[j] - X[j - 1]); return null; })();
-  $("chcTxt").innerHTML = `<b>${alvo ? "Alvo" : "Dose"} com mais chance de sucesso: ${v(X[i])}.</b> Nela, ${fmt(dorme[i])}% dos pacientes dormem,
-    ${fmt(h65[i])}% têm PAM abaixo de 65 mmHg e ${fmt(ok[i])}% dormem sem hipotensão.<br>
-    <small style="color:var(--ink-2)">${sm != null ? `Em média (metade dos pacientes), dorme a partir de <b>${v(sm)}</b>` : `Nem com ${v(X[X.length - 1])} metade dos pacientes dorme`};
-    ${h50 != null ? `metade tem PAM abaixo de 65 mmHg a partir de ${v(h50)}` : `nem com ${v(X[X.length - 1])} metade tem PAM abaixo de 65 mmHg`}.</small>`;
-  legenda($("legChc"), [{ cor: SONO, txt: "Dormem (BIS < 60)" }, { cor: LAR, txt: "PAM < 65 mmHg" }, { cor: VER, tipo: "dash", txt: "PAM < 55 mmHg" },
-    { cor: AZ, txt: "Dormem sem hipotensão" }, { cor: alfa(AZ, .4), tipo: "box", txt: "Quanto mais azul, mais pacientes dormem sem hipotensão" },
-    { cor: SONO, tipo: "dash", txt: "Em média dorme a partir daqui" }]);
-  const atual = alvo ? +ultimo.campos.alvo : +ultimo.campos.dose;
-  chart($("chChc"), { h: 330, xMin: X[0], xMax: X[X.length - 1], xDec: 1, yMin: 0, yMax: 100, yLabel: "Pacientes (%)",
-    xLabel: `${alvo ? "Concentração-alvo (µg/ml)" : "Dose do bolus (mg/kg)"} · Clique para simular`, xTip: v, onclick: z => escolherValor(z, alvo),
-    vbands: X.slice(1).map((x, j) => ({ x0: X[j], x1: x, color: AZ, op: .5 * (ok[j] + ok[j + 1]) / 200 })),
-    vlines: (sm != null ? [{ x: sm, color: SONO, label: `Em média dorme a partir de ${v(sm)}`, row: 0 }] : [])
-      .concat(atual >= X[0] && atual <= X[X.length - 1] ? [{ x: atual, label: `Atual: ${v(atual)}`, row: 1 }] : []),
-    series: [{ x: X, y: dorme, color: SONO, label: "Dormem", unit: "%", w: 3 },
-             { x: X, y: h65, color: LAR, label: "PAM < 65", unit: "%", w: 3 },
-             { x: X, y: h55, color: VER, label: "PAM < 55", unit: "%", w: 2, dash: "5 4" },
-             { x: X, y: ok, color: AZ, label: "Dormem sem hipotensão", unit: "%", w: 2 }],
-    points: [{ x: X[i], y: ok[i], color: AZ, label: `Melhor ${alvo ? "alvo" : "dose"}: ${v(X[i])}`, dy: -14 }] });
 }
 
 // ---------------------------------------------------------------- ações

@@ -14,7 +14,6 @@
 #   /api/prever?...    → a previsão, em JSON (formato de dados que a página lê)
 #   /api/comparar?...  → pressão × dose de propofol (remifentanil fixo): paciente típico, 61 doses ou alvos
 #   /api/remi?...      → pressão × dose de remifentanil (propofol fixo): paciente típico, 26 taxas
-#   /api/chances?...   → resposta à dose: % de pacientes que dormem e que têm hipotensão
 # =============================================================================
 
 # ---------------------------------------------------------------- JSON
@@ -24,7 +23,8 @@ json(x::Bool) = x ? "true" : "false"
 json(::Nothing) = "null"
 json(x::Symbol) = json(string(x))
 json(x::Integer) = string(x)
-json(x::Real) = isfinite(x) ? string(round(x; digits = 2)) : "null"
+# Números com 4 algarismos significativos: 98,49 mmHg nas curvas, mas 0,0327 nos parâmetros (com 2 casas virava 0,03).
+json(x::Real) = isfinite(x) ? string(round(x; sigdigits = 4)) : "null"
 json(x::AbstractVector) = "[" * join(json.(x), ",") * "]"
 json(x::NamedTuple) = "{" * join(["\"$k\":" * json(v) for (k, v) in pairs(x)], ",") * "}"
 
@@ -127,7 +127,8 @@ responder_previsao(p) = responder() do
                   emax_vs = PropofolWK.emax_vs(su, paciente.idade), k_out = su.k_out * 60, fb = su.fb,
                   ω²_c50 = ω²_SU_C50_RPT, n = 500, c50_remi_rpt = su.c50_remi_rpt, emax_remi_rpt = su.emax_remi_rpt,
                   sl_remi_fc = su.sl_remi_fc, sl_remi_vs = su.sl_remi_vs, int_rpt = su.int_rpt, int_vs = su.int_vs,
-                  int_fc = su.int_fc, ω²_emax_remi = ω²_SU_EMAX_REMI_RPT)
+                  int_fc = su.int_fc, ω²_emax_remi = ω²_SU_EMAX_REMI_RPT, α = su.α, c50_int_fc = su.c50_int_fc,
+                  ω²_eleveld = ω²_ELEVELD, ω²_minto = ω²_MINTO, opioide = remi.remi_ugkgmin > 0)
     bis = ParametrosBIS()
     sono = (r.sono..., ce50 = PropofolWK.ce50_bis(bis, paciente.idade), ke0 = PropofolWK.ke0_bis(bis, paciente.peso) * 60,
             atraso = PropofolWK.atraso_bis(bis, paciente.idade), ω²_ce50 = ω²_ELEVELD_BIS.ce50, ω²_ke0 = ω²_ELEVELD_BIS.ke0)
@@ -166,21 +167,6 @@ responder_remi(p) = responder() do
     (ok = true, modo = modo, linhas = linhas)
 end
 
-"""
-    responder_chances(p)
-
-Gráfico de resposta à dose: os mesmos 200 pacientes virtuais com 16 doses, de 0 a
-3 mg/kg de 0,2 em 0,2, ou 16 concentrações-alvo, de 0 a 6 µg/ml de 0,4 em 0,4.
-Para cada uma, a % de pacientes que dorme (BIS < 60), que tem PAM < 65 e < 55
-mmHg e que dorme sem PAM < 65 (ver `chances_por_dose`).
-"""
-responder_chances(p) = responder() do
-    paciente, modo, entrada, remi = ler_formulario(p)
-    valores = modo == "alvo" ? collect(0.0:0.4:6.0) : collect(0.0:0.2:3.0)
-    extra = modo == "alvo" ? (;) : (duracao_bolus_s = entrada.duracao_bolus_s, manutencao_mgkgh = entrada.manutencao_mgkgh)
-    (ok = true, modo = modo, n = 200, linhas = chances_por_dose(valores; paciente..., modo, n = 200, extra..., remi...))
-end
-
 # ---------------------------------------------------------------- servidor
 # Página da plataforma (fica em app/index.html, na raiz do projeto).
 const PAGINA = joinpath(@__DIR__, "..", "app", "index.html")
@@ -207,8 +193,6 @@ function atender(sock)
         enviar(sock, "200 OK", "application/json", responder_comparar(ler_parametros(consulta)))
     elseif caminho == "/api/remi"
         enviar(sock, "200 OK", "application/json", responder_remi(ler_parametros(consulta)))
-    elseif caminho == "/api/chances"
-        enviar(sock, "200 OK", "application/json", responder_chances(ler_parametros(consulta)))
     else
         enviar(sock, "404 Not Found", "text/plain", "Página não encontrada.")
     end

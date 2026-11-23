@@ -111,13 +111,13 @@ Resumo da previsão, para o cartão de risco e os blocos de números:
 - PAM mínima da mediana (`pam_nadir`, em `t_nadir` s) e queda em % da basal;
 - pior caso: PAM mínima da borda de baixo da faixa (`pam_pior`, em `t_pior` s) e o
   nível de risco dele (`risco`, com a PAM arredondada, como em `periodos_de_risco`);
-- segundos com PAM abaixo de 65 e de 55, na mediana e no pior caso;
+- segundos com PAM abaixo de 65 e de 55 (arredondada), na mediana e no pior caso;
 - FC mínima e Cp máxima (medianas);
 - variação (%) de RPT, VS e FC no instante da PAM mínima da mediana.
 """
 function metricas(t, pam_basal, fc_basal, faixa, fc, cp, rpt, vs; limiares = LIMIARES)
     dt = t[2] - t[1]
-    abaixo(curva, l) = dt * count(<(l), curva)        # segundos abaixo do limiar
+    abaixo(curva, l) = dt * count(x -> round(x) < l, curva)   # segundos abaixo do limiar (PAM arredondada, como no monitor)
     i, j, k = argmin(faixa.mediana), argmin(faixa.inf), argmax(cp.mediana)
     return (pam_basal = pam_basal, pam_nadir = faixa.mediana[i], t_nadir = t[i],
             queda_pct = 100 * (1 - faixa.mediana[i] / pam_basal),
@@ -148,11 +148,12 @@ function simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_remi, ant
 end
 
 # Uma linha das tabelas de pressão × dose: PAM mínima, quando, queda, segundos abaixo
-# de 65 e de 55, nível de risco (PAM mínima arredondada, como no monitor) e BIS mínimo.
+# de 65 e de 55 e nível de risco (com a PAM arredondada para mmHg inteiros, como no monitor) e BIS mínimo.
 function linha_tipico(valor, total, r, pam; limiares = LIMIARES)
     i = argmin(r.pam)
     return (valor = valor, total = total, pam_min = r.pam[i], t_min = i - 1.0, queda_pct = 100 * (1 - r.pam[i] / pam),
-            s_abaixo_65 = count(<(limiares.moderado), r.pam) * 1.0, s_abaixo_55 = count(<(limiares.alto), r.pam) * 1.0,
+            s_abaixo_65 = count(x -> round(x) < limiares.moderado, r.pam) * 1.0,
+            s_abaixo_55 = count(x -> round(x) < limiares.alto, r.pam) * 1.0,
             risco = nivel(round(r.pam[i]); limiares), bis_min = minimum(r.bis))
 end
 
@@ -198,30 +199,5 @@ function risco_por_remi(valores; idade, peso, altura, sexo, pam, fc, dose_mgkg =
                             duracao_s, opioide = taxa_r !== nothing)
         total = taxa_r === nothing ? 0.0 : sum(taxa_r)
         linha_tipico(v, total, simular_tipico(idade, peso, altura, sexo, pam, fc, taxa, taxa_r, remi_antes_s), pam; limiares)
-    end
-end
-
-"""
-    chances_por_dose(valores; idade, peso, altura, sexo, pam, fc, modo = "dose",
-                     duracao_bolus_s = 30, manutencao_mgkgh = 0, remi_ugkgmin = 0, remi_antes_s = 540,
-                     duracao_s = 1200, n = 300, semente = 1)
-
-Para o gráfico de resposta à dose: para cada valor (dose em mg/kg ou alvo em µg/ml),
-com o remifentanil fixo, os mesmos `n` pacientes virtuais (mesma `semente`) e a
-porcentagem deles que dorme (BIS < 60 em algum momento), que tem PAM < 65 e < 55
-mmHg (PAM arredondada, como no monitor) e que dorme sem PAM < 65 (`ok`).
-"""
-function chances_por_dose(valores; idade, peso, altura, sexo, pam, fc, modo = "dose",
-                          duracao_bolus_s = 30, manutencao_mgkgh = 0, remi_ugkgmin = 0, remi_antes_s = 540,
-                          duracao_s = 1200, n = 300, semente = 1)
-    taxa_r = taxa_remi_ou_nada(peso, remi_ugkgmin, remi_antes_s, duracao_s)
-    map(valores) do v
-        taxa = taxa_infusao(idade, peso, altura, sexo; dose_mgkg = modo == "alvo" ? nothing : v, duracao_bolus_s,
-                            manutencao_mgkgh, alvo_ugml = modo == "alvo" ? v : nothing, duracao_s, opioide = taxa_r !== nothing)
-        pop = simular_populacao(idade, peso, altura, sexo, pam, fc, taxa; taxa_remi = taxa_r, antes_s = remi_antes_s, n, semente)
-        dorme = [minimum(b) < LIMIAR_BIS for b in pop.bis]
-        pmin = [round(minimum(c)) for c in pop.curvas]
-        pct(x) = 100 * count(x) / n
-        (valor = v, dorme = pct(dorme), h65 = pct(pmin .< 65), h55 = pct(pmin .< 55), ok = pct(dorme .& (pmin .>= 65)))
     end
 end

@@ -201,7 +201,8 @@ end
         @test PropofolWK.ler_parametros("idade=70&sexo=M&manut=") == Dict("idade" => "70", "sexo" => "M", "manut" => "")
     end
     @testset "JSON" begin
-        @test PropofolWK.json((ok = true, x = 1.234, s = "a\"b", v = [1, 2])) == "{\"ok\":true,\"x\":1.23,\"s\":\"a\\\"b\",\"v\":[1,2]}"
+        @test PropofolWK.json((ok = true, x = 1.23456, s = "a\"b", v = [1, 2])) == "{\"ok\":true,\"x\":1.235,\"s\":\"a\\\"b\",\"v\":[1,2]}"
+        @test PropofolWK.json(0.0327) == "0.0327"           # parâmetros pequenos não perdem algarismos
     end
     # pede um endereço ao servidor, como o navegador faz, e devolve o conteúdo da resposta
     function pedir(porta, caminho)
@@ -233,9 +234,6 @@ end
         @test count("\"valor\":", corpo) == 26                # remifentanil de 0 a 0,5 µg/kg/min, de 0,02 em 0,02
         cab, corpo = pedir(8765, "/api/prever?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0&remi=0.1&remi_antes=9")
         @test occursin("\"cr_med\":[", corpo)                # Cp do remifentanil, para o gráfico
-        cab, corpo = pedir(8765, "/api/chances?idade=70&sexo=M&peso=80&altura=175&pam=75&fc=70&modo=dose&dose=2&bolus=30&manut=0")
-        @test occursin("\"dorme\":", corpo)                 # gráfico de resposta à dose
-        @test count("\"valor\":", corpo) == 16                # 0 a 3,0 mg/kg, de 0,2 em 0,2
         cab, corpo = pedir(8765, "/outra")
         @test startswith(cab, "HTTP/1.1 404")
     finally
@@ -254,15 +252,6 @@ end
     @test r[1].pam_min > r[2].pam_min > r[3].pam_min    # mais dose, PAM mínima mais baixa
     @test r[2].risco == nivel(round(manual))
     @test r[1].bis_min > r[2].bis_min > r[3].bis_min    # mais dose, BIS mais baixo
-end
-
-@testset "Resposta à dose (pacientes virtuais)" begin
-    paciente = (idade = 62, peso = 72, altura = 160, sexo = "F", pam = 90.0, fc = 78.0)
-    c = chances_por_dose([0.0, 1.0, 2.0, 3.0]; paciente..., n = 50)
-    @test c[1].dorme == 0 && c[1].h65 == 0                # sem propofol: ninguém dorme nem tem hipotensão
-    @test issorted([x.dorme for x in c])                  # mais dose, mais gente dormindo
-    @test issorted([x.h65 for x in c])                    # e mais gente com PAM < 65
-    @test all(x -> x.ok <= x.dorme && x.h55 <= x.h65, c)
 end
 
 # Tabela gerada com test/gerar_referencia_bis.py: Ce e BIS de Eleveld no PAS, sem opioide,

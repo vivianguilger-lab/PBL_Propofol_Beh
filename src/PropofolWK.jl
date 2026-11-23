@@ -27,6 +27,6 @@ export ParametrosSu, simular_hemodinamica
 export LIMIARES, nivel, percentil, faixa_pam, periodos_de_risco, descrever
 export ω²_ELEVELD, ω²_SU_C50_RPT, ω²_ELEVELD_BIS, ω²_SU_EMAX_REMI_RPT, sortear_paciente, sortear_remifentanil, simular_populacao
 export svg_faixa, grafico_faixa
-export prever, risco_por_dose, risco_por_remi, chances_por_dose, plataforma
+export prever, risco_por_dose, risco_por_remi, plataforma
 
 end
