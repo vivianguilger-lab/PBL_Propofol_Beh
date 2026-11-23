@@ -185,7 +185,7 @@ períodos de risco.
 
 **02 · Windkessel do paciente.** Os parâmetros identificados (Rp, C, Rc, L, constante de tempo Rp·C,
 débito e volume sistólico basais) e a **onda de pressão e de fluxo aórticos** em três batimentos: o basal,
-o do início do propofol e o da PAM mínima.
+o do início do propofol e o da PAM mínima..
 
 ![Windkessel do paciente](docs/imagens/windkessel.png)
 
